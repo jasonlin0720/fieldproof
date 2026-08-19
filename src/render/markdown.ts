@@ -84,10 +84,30 @@ function renderQueryNotes(page: FieldMapPage): string[] {
         .filter(Boolean)
         .join(' '),
     ),
+  ];
+}
+
+/**
+ * 啟用條件。獨立於查詢註記之外——沒有任何查詢帶 `note` 時，啟用條件仍該印出來。
+ *
+ * 只有在「每一支查詢都有、且條件完全相同」時才敢寫「全部查詢的」；否則逐支列出。
+ * 一律當成共通條件會謊報：多數頁面只有部分查詢帶條件。
+ */
+function renderEnabledWhen(page: FieldMapPage): string[] {
+  const entries = Object.entries(page.queries).filter(([, query]) => query.enabledWhen);
+  if (entries.length === 0) return [];
+
+  const values = new Set(entries.map(([, query]) => query.enabledWhen));
+  const everyQuery = entries.length === Object.keys(page.queries).length;
+
+  if (everyQuery && values.size === 1) {
+    return ['', `> 全部查詢的 \`enabledWhen\`：${[...values][0]}——不成立時查詢停用。`];
+  }
+
+  return [
     '',
-    `> 全部查詢的 \`enabledWhen\`：${
-      Object.values(page.queries).find((q) => q.enabledWhen)?.enabledWhen ?? '（無）'
-    }——不成立時查詢停用，對應區塊退空狀態且不卡首屏骨架。`,
+    '> `enabledWhen`（不成立時該支查詢停用）：',
+    ...entries.map(([id, query]) => `> - **${id}**：${query.enabledWhen}`),
   ];
 }
 
@@ -230,6 +250,7 @@ export function renderMarkdown(
     '',
     ...renderQueryTable(page),
     ...renderQueryNotes(page),
+    ...renderEnabledWhen(page),
     '',
     '---',
     '',

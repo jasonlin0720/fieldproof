@@ -146,6 +146,53 @@ describe('renderHtml', () => {
   });
 });
 
+describe('enabledWhen', () => {
+  it('只有部分查詢帶條件時逐支列出，不謊報為共通條件', () => {
+    // richPage 只有 Q1 帶 enabledWhen，Q2 沒有。
+    const md = renderMarkdown(PAGE, STATS, TEST_CONTEXT);
+
+    expect(md).not.toContain('全部查詢的');
+    expect(md).toContain('> - **Q1**：id 為有效數字');
+  });
+
+  it('每支查詢都帶且條件相同時，才收斂成一句', () => {
+    const page = richPage();
+    page.queries.Q2!.enabledWhen = page.queries.Q1!.enabledWhen;
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).toContain('> 全部查詢的 `enabledWhen`：id 為有效數字');
+  });
+
+  it('每支都帶但條件不同時，仍逐支列出', () => {
+    const page = richPage();
+    page.queries.Q2!.enabledWhen = '另一個條件';
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).not.toContain('全部查詢的');
+    expect(md).toContain('> - **Q1**：id 為有效數字');
+    expect(md).toContain('> - **Q2**：另一個條件');
+  });
+
+  it('沒有任何查詢帶條件時整段省略', () => {
+    const page = richPage();
+    delete page.queries.Q1!.enabledWhen;
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).not.toContain('enabledWhen');
+  });
+
+  it('沒有任何查詢帶 note 時，啟用條件仍會印出', () => {
+    // 修正前 enabledWhen 巢狀在「查詢註記」區塊內，沒有 note 就整段消失。
+    const page = richPage();
+    delete page.queries.Q1!.note;
+    delete page.queries.Q1!.filterNote;
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).not.toContain('**查詢註記**');
+    expect(md).toContain('id 為有效數字');
+  });
+});
+
 describe('可選欄位的退場', () => {
   it('省略 route 時，markdown 標題不留空括號', () => {
     const page = richPage();
