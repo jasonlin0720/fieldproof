@@ -1,0 +1,1857 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>書店後台總覽 欄位對照 · 驗收</title>
+    <!-- 空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求 -->
+    <link rel="icon" href="data:," />
+    <!--
+      本檔由 `pnpm example` 從 data/dashboard.json 生成，請勿手改。
+      要改內容請改 JSON 後重跑。
+    -->
+    <style>
+/* fieldproof 驗收介面樣式。由 render/html.ts inline 進生成的 HTML，無外部請求。 */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #ffffff;
+  --bg-subtle: #f5f7fa;
+  --bg-raised: #ffffff;
+  --bg-hover: #eef1f6;
+  --border: #e0e4ea;
+  --border-strong: #c8cfd9;
+  --text: #16191d;
+  --text-muted: #667085;
+  --text-faint: #98a2b3;
+  --accent: #2563eb;
+  --ok: #059669;
+  --ng: #dc2626;
+
+  --src-direct: #64748b;
+  --src-backend-agg: #2563eb;
+  --src-fe-pick: #c2410c;
+  --src-fe-agg: #be123c;
+  --src-fe-derive: #7c3aed;
+  --src-fe-const: #047857;
+
+  --font:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC',
+    'Microsoft JhengHei', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216;
+    --bg-subtle: #151920;
+    --bg-raised: #1a1f27;
+    --bg-hover: #212832;
+    --border: #272d36;
+    --border-strong: #3a424e;
+    --text: #e7eaee;
+    --text-muted: #98a2b3;
+    --text-faint: #6b7480;
+    --accent: #60a5fa;
+    --ok: #34d399;
+    --ng: #f87171;
+
+    --src-direct: #94a3b8;
+    --src-backend-agg: #60a5fa;
+    --src-fe-pick: #fb923c;
+    --src-fe-agg: #fb7185;
+    --src-fe-derive: #a78bfa;
+    --src-fe-const: #34d399;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- toolbar ---------- */
+
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 20px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+
+.toolbar__meta {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.toolbar__meta code {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.toolbar__spacer {
+  flex: 1;
+}
+
+.progress {
+  min-width: 210px;
+}
+
+.progress__text {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress__text b {
+  font-weight: 650;
+}
+
+.progress__problem {
+  color: var(--ng);
+}
+
+.progress__bar {
+  margin-top: 5px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.progress__fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ok);
+  transition: width 0.18s ease;
+}
+
+/* ---------- 通用控制項 ---------- */
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 5px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+
+.btn:hover {
+  background: var(--bg-hover);
+}
+
+.btn:focus-visible,
+.seg button:focus-visible,
+.multi__summary:focus-visible,
+.mark:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.btn--danger:hover {
+  border-color: var(--ng);
+  color: var(--ng);
+}
+
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.seg button {
+  padding: 5px 11px;
+  border: 0;
+  background: var(--bg-raised);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.seg button:hover {
+  background: var(--bg-hover);
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ---------- 篩選列 ---------- */
+
+.filters {
+  position: sticky;
+  top: 68px; /* = toolbar 高度（實測） */
+  z-index: 25;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+
+.filters__label {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.search {
+  flex: 0 1 280px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.multi {
+  position: relative;
+}
+
+.multi__summary {
+  list-style: none;
+  padding: 5px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.multi__summary::-webkit-details-marker {
+  display: none;
+}
+
+.multi[open] .multi__summary {
+  border-color: var(--accent);
+}
+
+.multi__count {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.multi__panel {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 40;
+  min-width: 220px;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+}
+
+.multi__item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.multi__item:hover {
+  background: var(--bg-hover);
+}
+
+.multi__item span:last-child {
+  margin-left: auto;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 表格 ---------- */
+
+.table-wrap {
+  padding: 0 20px 64px;
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+thead th {
+  position: sticky;
+  top: 117px; /* = toolbar 68 + filters 49 */
+  z-index: 20;
+  padding: 7px 9px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 8px 9px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+tbody tr.row:hover td {
+  background: var(--bg-subtle);
+}
+
+tbody tr.row--expanded td {
+  background: var(--bg-subtle);
+  border-bottom-color: transparent;
+}
+
+/* 分組列 */
+
+tr.group > td {
+  /* 單行且高度固定：sticky 元素會覆蓋捲過它的內容，行高越小遮蔽越少。
+     完整的空狀態規則與查詢參數改由 title tooltip 與展開區承載。 */
+  position: sticky;
+  top: 149px; /* = toolbar 68 + filters 49 + thead 32 */
+  z-index: 15;
+  padding: 9px 10px 8px;
+  background: var(--bg-raised);
+  border-top: 1px solid var(--border-strong);
+  border-bottom: 1px solid var(--border);
+}
+
+tr.group:first-child > td {
+  border-top: 0;
+}
+
+.group__head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  white-space: nowrap;
+}
+
+.group__title,
+.group__key,
+.group__progress,
+.group__head .btn {
+  flex: none;
+}
+
+/* 查詢參數 / 區塊 meta：吃掉剩餘寬度，過長以 ellipsis 收，完整內容看 title 與展開區 */
+.group__meta {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group__info {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: help;
+  border-bottom: 1px dotted var(--border-strong);
+}
+
+.group__title {
+  font-size: 13.5px;
+  font-weight: 650;
+}
+
+.group__key {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.group__meta {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.group__progress {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* 欄內容 */
+
+.expand {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.expand:hover {
+  color: var(--text);
+}
+
+.field-label {
+  font-weight: 550;
+}
+
+.field-flags {
+  margin-left: 3px;
+  cursor: help;
+}
+
+.qchip {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-subtle);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: help;
+}
+
+.qchip + .qchip {
+  margin-left: 3px;
+}
+
+.resp {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.resp--none {
+  color: var(--text-faint);
+  font-family: var(--font);
+}
+
+.how {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.how__display {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.how__display::before {
+  content: '顯示：';
+  color: var(--text-faint);
+}
+
+.src {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--src) 45%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--src) 13%, transparent);
+  color: var(--src);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+
+.src--direct {
+  --src: var(--src-direct);
+}
+.src--backend-agg {
+  --src: var(--src-backend-agg);
+}
+.src--fe-pick {
+  --src: var(--src-fe-pick);
+}
+.src--fe-agg {
+  --src: var(--src-fe-agg);
+}
+.src--fe-derive {
+  --src: var(--src-fe-derive);
+}
+.src--fe-const {
+  --src: var(--src-fe-const);
+}
+
+.cell-input {
+  width: 100%;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.cell-input:hover {
+  border-color: var(--border);
+}
+
+.cell-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-raised);
+  outline: none;
+}
+
+.cell-input--actual {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+/* 標記按鈕 */
+
+.marks {
+  display: flex;
+  gap: 4px;
+}
+
+.mark {
+  flex: 1;
+  padding: 3px 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bg-raised);
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.3;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.mark:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.mark[aria-pressed='true'][data-mark='ok'] {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.mark[aria-pressed='true'][data-mark='ng'] {
+  border-color: var(--ng);
+  background: color-mix(in srgb, var(--ng) 16%, transparent);
+  color: var(--ng);
+  font-weight: 700;
+}
+
+tr.row--ng td:first-child {
+  box-shadow: inset 2px 0 0 var(--ng);
+}
+
+/* 展開區 */
+
+tr.detail > td {
+  padding: 0 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.detail__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.detail__box {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-raised);
+}
+
+.detail__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--text-muted);
+}
+
+.detail__title .btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.detail__row {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.detail__row dt {
+  flex: 0 0 82px;
+  margin: 0;
+  color: var(--text-faint);
+}
+
+.detail__row dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
+.detail__note {
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.detail__note b {
+  color: var(--text);
+}
+
+/* 頁面註記 */
+
+.notes {
+  margin: 28px 0 0;
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-subtle);
+}
+
+.notes h2 {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.notes li {
+  margin-bottom: 8px;
+  font-size: 12.5px;
+}
+
+.notes li b {
+  display: block;
+}
+
+.notes li span {
+  color: var(--text-muted);
+}
+
+.empty-state {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%) translateY(12px);
+  z-index: 60;
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 12.5px;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.toast--show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 窄視窗保護：主要情境為全螢幕（≥1100px），此處只求不破版 */
+
+@media (max-width: 1100px) {
+  .col-actual,
+  .col-note,
+  .cell-actual,
+  .cell-note {
+    display: none;
+  }
+}
+
+/* ---------- 驗證檢查點（展開區） ---------- */
+
+.detail__box--checks {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+table.checks {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: collapse;
+}
+
+table.checks th {
+  position: static;
+  padding: 2px 6px 4px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-align: left;
+}
+
+table.checks td {
+  padding: 4px 6px 4px 0;
+  border: 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 11.5px;
+  vertical-align: top;
+}
+
+table.checks tr:last-child td {
+  border-bottom: 0;
+}
+
+table.checks code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+table.checks td:last-child {
+  color: var(--text);
+}
+
+.checks-tag {
+  margin-left: 5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* ---------- 定義變更 ---------- */
+
+.stale-tag {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 5px;
+  border: 1px solid color-mix(in srgb, var(--src-fe-pick) 45%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--src-fe-pick) 14%, transparent);
+  color: var(--src-fe-pick);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: help;
+}
+
+tr.row--stale td:first-child {
+  box-shadow: inset 2px 0 0 var(--src-fe-pick);
+}
+
+/* ---------- Network 對帳 dialog ---------- */
+
+.dlg {
+  width: min(1080px, 92vw);
+  max-height: 84vh;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-raised);
+  color: var(--text);
+}
+
+.dlg::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+.dlg__head {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 18px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.dlg__head .btn {
+  margin-left: auto;
+}
+
+.dlg__body {
+  padding: 16px 18px 22px;
+  overflow-y: auto;
+}
+
+.reconcile__lead {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.reconcile__lead b {
+  color: var(--text);
+  font-size: 14px;
+}
+
+table.reconcile {
+  width: 100%;
+  table-layout: auto;
+}
+
+table.reconcile th {
+  position: static;
+  top: auto;
+}
+
+table.reconcile td {
+  padding: 6px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+table.reconcile code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.reconcile__filter {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+}
+
+table.reconcile .btn {
+  margin-left: 7px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.reconcile__count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+tr.reconcile--conditional td {
+  color: var(--text-muted);
+}
+
+.reconcile__note {
+  margin: 14px 0 0;
+  padding-top: 11px;
+  border-top: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.reconcile__note b {
+  color: var(--text);
+}
+
+.group__filter {
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text);
+}
+
+/* 失效的那一側：標記淡化並加虛線框，提示需重驗（另一側不受影響） */
+.marks--stale .mark[aria-pressed='true'] {
+  opacity: 0.35;
+}
+
+.marks--stale {
+  border-radius: 6px;
+  outline: 1px dashed color-mix(in srgb, var(--src-fe-pick) 55%, transparent);
+  outline-offset: 2px;
+}
+
+    </style>
+  </head>
+  <body>
+    <header class="toolbar">
+      <div>
+        <h1>書店後台總覽 欄位對照</h1>
+        <p class="toolbar__meta">
+          <code>/admin/dashboard</code> ・
+          3 區塊 ・ 11 欄位 ・
+          5 查詢（4 輪詢，單次全量 5 支 HTTP；
+          每分鐘 1 支、每小時 64 支）・
+          盤點 2026-08-19
+        </p>
+      </div>
+      <div class="toolbar__spacer"></div>
+      <div class="progress">
+        <div class="progress__text">
+          <span>已驗 <b id="progress-done">0/0</b> <span id="visible-count"></span></span>
+          <span id="progress-ng">無問題</span>
+        </div>
+        <div class="progress__bar"><span class="progress__fill" id="progress-fill"></span></div>
+      </div>
+      <button class="btn" type="button" id="reconcile">Network 對帳</button>
+      <button class="btn" type="button" id="export">匯出問題清單</button>
+      <button class="btn btn--danger" type="button" id="reset">重置</button>
+    </header>
+
+    <div class="filters">
+      <input class="search" type="search" id="search" placeholder="搜尋欄位 / response / 取值方式…" aria-label="搜尋" />
+
+      <span class="filters__label">分組</span>
+      <div class="seg" role="group" aria-label="分組方式">
+        <button type="button" data-group="section" aria-pressed="true">依區塊</button>
+        <button type="button" data-group="query" aria-pressed="false">依查詢</button>
+      </div>
+
+        <details class="multi" id="filter-section">
+          <summary class="multi__summary">區塊 <span class="multi__count" style="display:none"></span></summary>
+          <div class="multi__panel"></div>
+        </details>
+
+        <details class="multi" id="filter-query">
+          <summary class="multi__summary">查詢 <span class="multi__count" style="display:none"></span></summary>
+          <div class="multi__panel"></div>
+        </details>
+
+        <details class="multi" id="filter-source">
+          <summary class="multi__summary">取得方式 <span class="multi__count" style="display:none"></span></summary>
+          <div class="multi__panel"></div>
+        </details>
+
+      <span class="filters__label">狀態</span>
+      <div class="seg" role="group" aria-label="驗收狀態">
+        <button type="button" data-status="all" aria-pressed="true">全部</button>
+        <button type="button" data-status="unverified" aria-pressed="false">只看未驗</button>
+        <button type="button" data-status="problem" aria-pressed="false">只看有問題</button>
+        <button type="button" data-status="stale" aria-pressed="false">定義已變更</button>
+      </div>
+    </div>
+
+    <main class="table-wrap">
+      <table>
+        <colgroup>
+          <col style="width: 34px" />
+          <col style="width: 168px" />
+          <col style="width: 76px" />
+          <col style="width: 258px" />
+          <col />
+          <col class="col-actual" style="width: 112px" />
+          <col style="width: 74px" />
+          <col style="width: 74px" />
+          <col class="col-note" style="width: 168px" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th><span class="sr-only"></span></th>
+            <th>UI 欄位</th>
+            <th>查詢</th>
+            <th>response 欄位</th>
+            <th>預期取值 / 顯示</th>
+            <th class="col-actual">畫面實際值</th>
+            <th>資料</th>
+            <th>顯示</th>
+            <th class="col-note">備註</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+
+      <section class="notes">
+        <h2>已知落差 / 注意事項</h2>
+        <ol>
+          <li><b>Q2 一次取全量的理由</b><span>趨勢圖需要整段序列，分頁取會讓前端得自行串頁；與後端確認過資料量上限後改為一次取全量。</span></li>
+          <li><b>退款卡片的條件性請求</b><span>Q5 只在卡片展開時才發，故 Network 對帳時進頁不會看到它——這是預期行為，不是漏打。</span></li>
+        </ol>
+      </section>
+    </main>
+
+    <dialog class="dlg" id="reconcile-dlg">
+      <div class="dlg__head">
+        <strong>Network 對帳清單</strong>
+        <button class="btn" type="button" id="reconcile-close">關閉</button>
+      </div>
+      <div class="dlg__body" id="reconcile-body"></div>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script type="application/json" id="fieldproof-data">{"page":"dashboard","title":"書店後台總覽","route":"/admin/dashboard","sources":["src/composables/useDashboardData.ts","src/components/dashboard/SalesCard.vue","src/components/dashboard/StockTable.vue"],"auditedAt":"2026-08-19","queries":{"Q1":{"endpoint":"GET /api/orders/summary","sdk":"getOrderSummary","params":{"From":"當日 00:00","To":"now"},"filter":"orders/summary","refetch":"minutely","enabledWhen":"已登入且 storeId 為有效數字"},"Q2":{"endpoint":"GET /api/orders","sdk":"getOrders","params":{"Page":"1","PageSize":"9999","Status":"paid"},"filter":"Page=1&PageSize=9999","filterNote":"會一併匹配到 Q3；以 `Status=paid` 再篩一次即可分辨。","refetch":"hourly","httpCount":2,"note":"分頁端點，一次取全量以便前端自行彙總。"},"Q3":{"endpoint":"GET /api/inventory","sdk":"getInventory","params":{"Page":"1","PageSize":"9999"},"filter":"/api/inventory","refetch":"hourly"},"Q4":{"endpoint":"GET /api/stores","sdk":"getStores","params":{},"filter":"/api/stores","origin":"layout","refetch":"none","note":"版面層的分店切換器自打，不屬於任何卡片。"},"Q5":{"endpoint":"GET /api/orders/refunds","sdk":"getRefunds","params":{"From":"當月 1 日","To":"now"},"filter":"orders/refunds","conditional":true,"refetch":"hourly","note":"退款卡片預設收合，展開後才發。"}},"sections":[{"key":"sales-summary","kind":"card","title":"今日業績","meta":{"位置":"左上","深連結":"/admin/orders"},"emptyRule":"整卡無資料時顯示「今日尚無訂單」，不畫骨架。","fields":[{"id":"revenue","label":"今日營收","query":"Q1","resp":"totals.revenue","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","checks":[{"given":"response = 1234567","expect":"1,234,567 元"},{"given":"response = null","expect":"—"},{"given":"response = 0","expect":"0 元"}],"dataHash":"dde3fe91","displayHash":"4b5f12dc"},{"id":"order-count","label":"訂單數","query":"Q1","resp":"totals.orderCount","source":"direct","how":"API 欄位直取","display":"整數；null → —","dataHash":"67352280","displayHash":"ee2dc950"},{"id":"avg-order-value","label":"客單價","query":"Q1","resp":"—","source":"fe-derive","how":"前端換算：revenue ÷ orderCount","display":"四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —","checks":[{"given":"orderCount = 0","expect":"—（不可顯示 NaN 或 Infinity）"}],"flags":["fragile"],"note":"分母為 0 的情形後端不保證不會出現，前端須自行擋。","dataHash":"58cd9f64","displayHash":"d90e8dad"},{"id":"refund-total","label":"本月退款","query":"Q5","resp":"totals.refundAmount","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","flags":["backend-pending"],"note":"後端仍在確認退款是否含手續費，數字可能再變。","dataHash":"81338609","displayHash":"a15a6638"}]},{"key":"sales-trend","kind":"chart","title":"近 7 日營收趨勢","fields":[{"id":"trend-series","label":"折線資料","query":"Q2","resp":"items[].paidAt / items[].amount","source":"fe-agg","how":"前端依 paidAt 分日 bucket 後加總 amount","display":"無資料的日子畫斷點，不連線","dataHash":"4efb4ff8","displayHash":"834e759f"},{"id":"trend-labels","label":"X 軸標籤","resp":"—","source":"fe-const","how":"前端生成近 7 日日期，不來自 API","display":"MM/DD","dataHash":"cc8c61fe","displayHash":"5daea3ee"},{"id":"trend-peak","label":"峰值標記","query":"Q2","resp":"items[].amount","source":"fe-pick","how":"前端取分日加總後的最大值那一日","display":"該點加圓點標記與數值標籤；全為 0 時不標","dataHash":"d4110f97","displayHash":"84ff7216"}]},{"key":"stock-table","kind":"table","title":"低庫存品項","emptyRule":"無低庫存品項時顯示「庫存水位正常」。","fields":[{"id":"isbn","label":"ISBN","query":"Q3","resp":"items[].isbn","source":"direct","how":"API 欄位直取","display":"等寬字體；空字串 → —","dataHash":"6c8e871e","displayHash":"f0dc5e32"},{"id":"title","label":"書名","query":"Q3","resp":"items[].title","source":"direct","how":"API 欄位直取","display":"超長截斷加 tooltip","dataHash":"61dc3121","displayHash":"fc02e9f7"},{"id":"stock","label":"剩餘庫存","query":"Q3","resp":"items[].stock","source":"direct","how":"API 欄位直取","display":"整數；\u003c 10 時數字轉紅","checks":[{"given":"stock = 9","expect":"紅色 9"},{"given":"stock = 10","expect":"一般色 10"}],"dataHash":"d717aa60","displayHash":"4039f08f"},{"id":"store-name","label":"所屬分店","query":["Q3","Q4"],"resp":"items[].storeId → stores[].name","source":"fe-derive","how":"以 storeId 對 Q4 的分店清單查表換名稱","display":"查無對應時顯示原始 storeId","flags":["exception"],"note":"全站其他表格由後端直接回名稱，只有此處是前端查表——後端此端點未帶 storeName。","dataHash":"24a1ccfb","displayHash":"fecb963f"}]}],"notes":[{"title":"Q2 一次取全量的理由","body":"趨勢圖需要整段序列，分頁取會讓前端得自行串頁；與後端確認過資料量上限後改為一次取全量。"},{"title":"退款卡片的條件性請求","body":"Q5 只在卡片展開時才發，故 Network 對帳時進頁不會看到它——這是預期行為，不是漏打。"}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":5,"bySource":{"backend-agg":2,"direct":4,"fe-agg":1,"fe-const":1,"fe-derive":2,"fe-pick":1},"conditionalHttpCount":1,"fieldCount":11,"httpCount":6,"perHour":64,"perMinute":1,"pollingHttpCount":5,"pollingQueryCount":4,"queryCount":5,"sectionCount":3}}</script>
+    <script>
+/* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
+(() => {
+  'use strict';
+
+  const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+  const STORE_KEY = `fieldproof:v1:${PAGE.page}`;
+  const PREF_KEY = `fieldproof:v1:${PAGE.page}:prefs`;
+
+  const SOURCE_LABELS = PAGE.sourceLabels;
+  const FLAG_META = PAGE.flagMeta;
+  const REFETCH_LABELS = { hourly: '每整點', minutely: '每整分', none: '不輪詢' };
+
+  // ---------- state ----------
+
+  /** 驗收標記：{ [id]: { data?: 'ok'|'ng', display?: 'ok'|'ng', actual?: string, note?: string } } */
+  let marks = read(STORE_KEY, {});
+  const prefs = read(PREF_KEY, {});
+
+  const state = {
+    group: prefs.group === 'query' ? 'query' : 'section',
+    search: '',
+    sections: new Set(),
+    queries: new Set(),
+    sources: new Set(),
+    status: 'all',
+    expanded: new Set(),
+  };
+
+  function read(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(marks));
+    } catch (error) {
+      console.warn('無法寫入 localStorage', error);
+    }
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify({ group: state.group }));
+    } catch {
+      /* 忽略：偏好存不了不影響驗收 */
+    }
+  }
+
+  // ---------- 資料攤平 ----------
+
+  /** 一列 = 一個欄位。id 為 `${section.key}/${field.id}`，是驗收狀態的穩定識別。 */
+  const ROWS = [];
+  for (const section of PAGE.sections) {
+    for (const field of section.fields) {
+      ROWS.push({
+        id: `${section.key}/${field.id}`,
+        section,
+        field,
+        queryIds: field.query === undefined ? [] : [].concat(field.query),
+      });
+    }
+  }
+
+  const markOf = (id) => marks[id] || {};
+  const fieldOf = (id) => ROWS.find((row) => row.id === id)?.field;
+
+  const HASH_KEY = { data: 'dataHash', display: 'displayHash' };
+
+  /**
+   * 某一側（資料 / 顯示）的結論是否已失效：標記當下記下的定義指紋與現在的不同，
+   * 代表 JSON 在那之後改過了，舊結論不可信。
+   *
+   * 兩側各自獨立——只改顯示規則時，「資料」的結論仍然有效。
+   */
+  const isStaleSide = (id, kind) => {
+    const m = markOf(id);
+    if (!m[kind]) return false;
+    const field = fieldOf(id);
+    if (!field) return false;
+    const stamped = m[HASH_KEY[kind]];
+    // 舊格式（未分側或無指紋）一律視為失效，保守要求重驗。
+    if (stamped === undefined) return true;
+    return stamped !== field[HASH_KEY[kind]];
+  };
+
+  const isStale = (id) => isStaleSide(id, 'data') || isStaleSide(id, 'display');
+
+  /** 已驗＝兩側都標過、且兩側都未失效。 */
+  const isVerified = (id) => {
+    const m = markOf(id);
+    return (
+      Boolean(m.data) &&
+      Boolean(m.display) &&
+      !isStaleSide(id, 'data') &&
+      !isStaleSide(id, 'display')
+    );
+  };
+
+  /** 有問題＝任一側標為 ✗ 且該側結論仍有效。 */
+  const hasProblem = (id) => {
+    const m = markOf(id);
+    return (
+      (m.data === 'ng' && !isStaleSide(id, 'data')) ||
+      (m.display === 'ng' && !isStaleSide(id, 'display'))
+    );
+  };
+
+  // ---------- 篩選 ----------
+
+  function matches(row) {
+    if (state.sections.size && !state.sections.has(row.section.key)) return false;
+
+    if (state.queries.size) {
+      const hit = row.queryIds.some((q) => state.queries.has(q));
+      const noneSelected = state.queries.has('__none__') && row.queryIds.length === 0;
+      if (!hit && !noneSelected) return false;
+    }
+
+    if (state.sources.size && !state.sources.has(row.field.source)) return false;
+
+    if (state.status === 'unverified' && isVerified(row.id)) return false;
+    if (state.status === 'problem' && !hasProblem(row.id)) return false;
+    if (state.status === 'stale' && !isStale(row.id)) return false;
+
+    if (state.search) {
+      const m = markOf(row.id);
+      const haystack = [
+        row.section.title,
+        row.field.label,
+        row.field.resp,
+        row.field.how,
+        row.field.display,
+        row.field.note || '',
+        m.note || '',
+        m.actual || '',
+        row.queryIds.join(' '),
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(state.search)) return false;
+    }
+
+    return true;
+  }
+
+  /** 依目前分組模式，把通過篩選的列切成群組。 */
+  function buildGroups(rows) {
+    if (state.group === 'section') {
+      return PAGE.sections
+        .map((section) => ({
+          kind: 'section',
+          key: section.key,
+          section,
+          rows: rows.filter((row) => row.section.key === section.key),
+        }))
+        .filter((group) => group.rows.length);
+    }
+
+    const groups = Object.entries(PAGE.queries)
+      .map(([id, query]) => ({
+        kind: 'query',
+        key: id,
+        query,
+        rows: rows.filter((row) => row.queryIds.includes(id)),
+      }))
+      .filter((group) => group.rows.length);
+
+    const orphans = rows.filter((row) => row.queryIds.length === 0);
+    if (orphans.length) {
+      groups.push({ kind: 'query', key: '__none__', query: null, rows: orphans });
+    }
+    return groups;
+  }
+
+  // ---------- 渲染 ----------
+
+  const esc = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  /** 極簡 inline markdown：只處理 **粗體**，供 checks 標出「不是 0」這類重點。 */
+  const inlineMd = (text) => text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+  function srcChip(source) {
+    return `<span class="src src--${esc(source)}">${esc(SOURCE_LABELS[source])}</span>`;
+  }
+
+  function flagIcons(field) {
+    if (!field.flags || !field.flags.length) return '';
+    const title = field.flags.map((f) => FLAG_META[f].label).join('；');
+    const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
+    return `<span class="field-flags" title="${esc(title)}">${icons}</span>`;
+  }
+
+  function queryChips(row) {
+    if (!row.queryIds.length) return '<span class="resp--none">—</span>';
+    return row.queryIds
+      .map((id) => {
+        const query = PAGE.queries[id];
+        const title = query
+          ? `${query.endpoint}\n${Object.entries(query.params)
+              .map(([k, v]) => `${k}=${v}`)
+              .join('\n')}`
+          : id;
+        return `<span class="qchip" title="${esc(title)}">${esc(id)}</span>`;
+      })
+      .join('');
+  }
+
+  function markCell(row, kind) {
+    const current = markOf(row.id)[kind];
+    const stale = isStaleSide(row.id, kind);
+    const btn = (value, label) =>
+      `<button class="mark" type="button" data-id="${esc(row.id)}" data-kind="${kind}" ` +
+      `data-mark="${value}" aria-pressed="${current === value}" ` +
+      `aria-label="${esc(row.section.title)} ${esc(row.field.label)} ${
+        kind === 'data' ? '資料' : '顯示'
+      }${label}">${value === 'ok' ? '✓' : '✗'}</button>`;
+    return (
+      `<div class="marks${stale ? ' marks--stale' : ''}"` +
+      (stale ? ` title="這一側的定義在上次標記後改過了，請重驗"` : '') +
+      `>${btn('ok', '正確')}${btn('ng', '有問題')}</div>`
+    );
+  }
+
+  function rowHtml(row) {
+    const m = markOf(row.id);
+    const expanded = state.expanded.has(row.id);
+    const stale = isStale(row.id);
+    const resp =
+      row.field.resp === '—'
+        ? '<span class="resp resp--none">—（不來自 API）</span>'
+        : `<span class="resp">${esc(row.field.resp)}</span>`;
+
+    return (
+      `<tr class="row${expanded ? ' row--expanded' : ''}${hasProblem(row.id) ? ' row--ng' : ''}` +
+      `${stale ? ' row--stale' : ''}" data-id="${esc(row.id)}">` +
+      `<td><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
+      `aria-expanded="${expanded}" aria-label="展開細節">${expanded ? '▾' : '▸'}</button></td>` +
+      `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field)}` +
+      (stale
+        ? `<span class="stale-tag" title="上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗">⟳ ${
+            isStaleSide(row.id, 'data') && isStaleSide(row.id, 'display')
+              ? '定義已變更'
+              : isStaleSide(row.id, 'data')
+                ? '取值定義已變更'
+                : '顯示定義已變更'
+          }</span>`
+        : '') +
+      (row.field.checks
+        ? `<span class="checks-tag" title="展開可見 ${row.field.checks.length} 條驗證檢查點">${row.field.checks.length} 檢查點</span>`
+        : '') +
+      `</td>` +
+      `<td>${queryChips(row)}</td>` +
+      `<td>${resp}</td>` +
+      `<td><div class="how"><span>${srcChip(row.field.source)}${esc(row.field.how)}</span>` +
+      `<span class="how__display">${esc(row.field.display)}</span></div></td>` +
+      `<td class="cell-actual"><input class="cell-input cell-input--actual" type="text" ` +
+      `data-input="actual" data-id="${esc(row.id)}" name="actual:${esc(row.id)}" ` +
+      `value="${esc(m.actual || '')}" placeholder="畫面上看到的值" aria-label="畫面實際值"></td>` +
+      `<td>${markCell(row, 'data')}</td>` +
+      `<td>${markCell(row, 'display')}</td>` +
+      `<td class="cell-note"><input class="cell-input" type="text" data-input="note" ` +
+      `data-id="${esc(row.id)}" name="note:${esc(row.id)}" value="${esc(m.note || '')}" ` +
+      `placeholder="備註" aria-label="備註"></td>` +
+      `</tr>` +
+      (expanded ? detailHtml(row) : '')
+    );
+  }
+
+  function detailHtml(row) {
+    const boxes = row.queryIds.map((id) => {
+      const query = PAGE.queries[id];
+      if (!query) return '';
+      const params = Object.entries(query.params)
+        .map(([k, v]) => `<div class="detail__row"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`)
+        .join('');
+      return (
+        `<div class="detail__box">` +
+        `<div class="detail__title">${esc(id)} · ${REFETCH_LABELS[query.refetch]}` +
+        (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
+        `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button></div>` +
+        `<div class="detail__row"><dt>篩選字串</dt><dd><b>${esc(query.filter)}</b></dd></div>` +
+        `<div class="detail__row"><dt>端點</dt><dd>${esc(query.endpoint)}</dd></div>` +
+        `<div class="detail__row"><dt>SDK</dt><dd>${esc(query.sdk)}</dd></div>` +
+        params +
+        (query.enabledWhen
+          ? `<div class="detail__row"><dt>啟用條件</dt><dd>${esc(query.enabledWhen)}</dd></div>`
+          : '') +
+        (query.filterNote
+          ? `<p class="detail__note"><b>篩選提醒：</b>${esc(query.filterNote)}</p>`
+          : '') +
+        (query.note ? `<p class="detail__note">${esc(query.note)}</p>` : '') +
+        `</div>`
+      );
+    });
+
+    if (row.field.checks && row.field.checks.length) {
+      boxes.unshift(
+        `<div class="detail__box detail__box--checks">` +
+          `<div class="detail__title">怎麼驗（${row.field.checks.length} 條）</div>` +
+          `<table class="checks"><thead><tr><th>給定</th><th>畫面應該</th></tr></thead><tbody>` +
+          row.field.checks
+            .map(
+              (c) =>
+                `<tr><td><code>${esc(c.given)}</code></td><td>${inlineMd(esc(c.expect))}</td></tr>`,
+            )
+            .join('') +
+          `</tbody></table></div>`,
+      );
+    }
+
+    const notes = [];
+    if (row.field.flags && row.field.flags.length) {
+      notes.push(
+        row.field.flags
+          .map((f) => `<b>${FLAG_META[f].icon} ${esc(FLAG_META[f].label)}</b>`)
+          .join(' '),
+      );
+    }
+    if (row.field.note) notes.push(esc(row.field.note));
+    if (row.section.emptyRule) notes.push(`<b>空狀態：</b>${esc(row.section.emptyRule)}`);
+
+    if (notes.length) {
+      boxes.push(
+        `<div class="detail__box"><div class="detail__title">註記</div>` +
+          notes.map((n) => `<p class="detail__note">${n}</p>`).join('') +
+          `</div>`,
+      );
+    }
+
+    if (!boxes.length) {
+      boxes.push(
+        `<div class="detail__box"><div class="detail__title">註記</div>` +
+          `<p class="detail__note">此欄位不來自任何 API，由前端生成。</p></div>`,
+      );
+    }
+
+    return `<tr class="detail"><td colspan="9"><div class="detail__grid">${boxes.join('')}</div></td></tr>`;
+  }
+
+  function groupHeadHtml(group) {
+    const done = group.rows.filter((row) => isVerified(row.id)).length;
+    const ng = group.rows.filter((row) => hasProblem(row.id)).length;
+    const progress =
+      `${done}/${group.rows.length} 已驗` +
+      (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+
+    if (group.kind === 'section') {
+      const section = group.section;
+      const meta = Object.entries(section.meta || {})
+        .map(([k, v]) => `${esc(k)} ${esc(v)}`)
+        .join(' ・ ');
+      return (
+        `<tr class="group"><td colspan="9">` +
+        `<div class="group__head"><span class="group__title">${esc(section.title)}</span>` +
+        `<span class="group__key">${esc(section.key)}</span>` +
+        `<span class="group__meta">${esc(PAGE.sectionKindLabels[section.kind])}${meta ? ' ・ ' + meta : ''}</span>` +
+        (section.emptyRule
+          ? `<span class="group__info" title="空狀態：${esc(section.emptyRule)}">ⓘ 空狀態</span>`
+          : '') +
+        `<span class="group__progress">${progress}</span></div>` +
+        `</td></tr>`
+      );
+    }
+
+    if (!group.query) {
+      return (
+        `<tr class="group"><td colspan="9"><div class="group__head">` +
+        `<span class="group__title">無查詢（前端生成）</span>` +
+        `<span class="group__meta">X 軸 labels、硬編單位、local UI state</span>` +
+        `<span class="group__progress">${progress}</span></div></td></tr>`
+      );
+    }
+
+    const query = group.query;
+    const params = Object.entries(query.params)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' · ');
+    return (
+      `<tr class="group"><td colspan="9">` +
+      `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
+      `<span class="group__key">${esc(query.endpoint)} ・ ${REFETCH_LABELS[query.refetch]}${
+        query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
+      }</span>` +
+      `<span class="group__meta" title="${esc(params)}">` +
+      `<code class="group__filter">${esc(query.filter)}</code> ${esc(params)}</span>` +
+      `<button class="btn" type="button" data-copy="${esc(group.key)}" ` +
+      `title="複製「${esc(query.filter)}」貼進 DevTools Network filter">複製篩選</button>` +
+      `<span class="group__progress">${progress}</span></div>` +
+      `</td></tr>`
+    );
+  }
+
+  let visibleCount = ROWS.length;
+
+  function render() {
+    const rows = ROWS.filter(matches);
+    visibleCount = rows.length;
+    const groups = buildGroups(rows);
+    const body = document.getElementById('tbody');
+
+    body.innerHTML = groups.length
+      ? groups.map((g) => groupHeadHtml(g) + g.rows.map(rowHtml).join('')).join('')
+      : `<tr><td colspan="9"><div class="empty-state">沒有符合條件的欄位</div></td></tr>`;
+
+    renderProgress(rows.length);
+  }
+
+  function renderProgress(visible) {
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    const ng = ROWS.filter((row) => hasProblem(row.id)).length;
+    document.getElementById('progress-done').textContent = `${done}/${ROWS.length}`;
+    document.getElementById('progress-ng').textContent = ng ? `${ng} 有問題` : '無問題';
+    document.getElementById('progress-ng').classList.toggle('progress__problem', ng > 0);
+    document.getElementById('progress-fill').style.width =
+      `${ROWS.length ? (done / ROWS.length) * 100 : 0}%`;
+    document.getElementById('visible-count').textContent =
+      visible === ROWS.length ? '' : `（篩選中：${visible}）`;
+  }
+
+  /**
+   * 標記後的局部更新：重繪整個 tbody 會讓正在編輯的備註 / 實際值輸入框失焦，
+   * 故只改動該列自身、其所屬分組的進度與頁首進度。
+   * 只有當篩選條件與標記狀態相關（只看未驗 / 只看有問題）時，該列可能要進出視野，
+   * 這時才需要整表重算。
+   */
+  function patchRow(id) {
+    const rowEl = document.querySelector(`tr.row[data-id="${id}"]`);
+    if (!rowEl) return;
+
+    const m = markOf(id);
+    for (const btn of rowEl.querySelectorAll('.mark')) {
+      btn.setAttribute('aria-pressed', String(m[btn.dataset.kind] === btn.dataset.mark));
+    }
+    rowEl.classList.toggle('row--ng', hasProblem(id));
+    rowEl.classList.toggle('row--stale', isStale(id));
+    for (const marks of rowEl.querySelectorAll('.marks')) {
+      const kind = marks.querySelector('.mark')?.dataset.kind;
+      marks.classList.toggle('marks--stale', kind ? isStaleSide(id, kind) : false);
+    }
+    const staleTag = rowEl.querySelector('.stale-tag');
+    if (staleTag && !isStale(id)) staleTag.remove();
+
+    patchGroupProgress(rowEl);
+    renderProgress(visibleCount);
+  }
+
+  /** 重算該列所屬分組的「N/M 已驗」。 */
+  function patchGroupProgress(rowEl) {
+    let groupEl = rowEl.previousElementSibling;
+    while (groupEl && !groupEl.classList.contains('group')) {
+      groupEl = groupEl.previousElementSibling;
+    }
+    if (!groupEl) return;
+
+    const ids = [];
+    for (let cursor = groupEl.nextElementSibling; cursor; cursor = cursor.nextElementSibling) {
+      if (cursor.classList.contains('group')) break;
+      if (cursor.classList.contains('row')) ids.push(cursor.dataset.id);
+    }
+
+    const done = ids.filter(isVerified).length;
+    const ng = ids.filter(hasProblem).length;
+    groupEl.querySelector('.group__progress').innerHTML =
+      `${done}/${ids.length} 已驗` + (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+  }
+
+  // ---------- 多選篩選器 ----------
+
+  function buildMulti(id, label, items, target) {
+    const host = document.getElementById(id);
+    host.querySelector('.multi__panel').innerHTML = items
+      .map(
+        (item) =>
+          `<label class="multi__item"><input type="checkbox" name="${esc(id)}" ` +
+          `value="${esc(item.value)}">` +
+          `<span>${esc(item.label)}</span><span>${item.count}</span></label>`,
+      )
+      .join('');
+
+    host.addEventListener('change', (event) => {
+      const input = event.target;
+      if (input.type !== 'checkbox') return;
+      if (input.checked) target.add(input.value);
+      else target.delete(input.value);
+      const badge = host.querySelector('.multi__count');
+      badge.textContent = target.size || '';
+      badge.style.display = target.size ? '' : 'none';
+      render();
+    });
+  }
+
+  function countBy(getKey) {
+    const counts = new Map();
+    for (const row of ROWS) {
+      for (const key of [].concat(getKey(row))) {
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  // ---------- 匯出 ----------
+
+  function buildReport() {
+    const problems = ROWS.filter((row) => hasProblem(row.id));
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    const lines = [
+      `## ${PAGE.title} 驗收問題清單`,
+      '',
+      `已驗 ${done}/${ROWS.length} · 有問題 ${problems.length}`,
+      '',
+    ];
+
+    if (!problems.length) {
+      lines.push('全數通過，無標記為有問題的欄位。');
+      return lines.join('\n');
+    }
+
+    for (const row of problems) {
+      const m = markOf(row.id);
+      const failed = [m.data === 'ng' ? '資料' : null, m.display === 'ng' ? '顯示' : null]
+        .filter(Boolean)
+        .join('、');
+      lines.push(`### ${row.section.title} · ${row.field.label}`);
+      for (const id of row.queryIds) {
+        const query = PAGE.queries[id];
+        const params = Object.entries(query.params)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(' · ');
+        lines.push(`- 查詢：${id} \`${query.endpoint}\`（${params}）`);
+      }
+      if (!row.queryIds.length) lines.push('- 查詢：—（前端生成）');
+      lines.push(`- response：\`${row.field.resp}\``);
+      lines.push(`- 預期取值：${SOURCE_LABELS[row.field.source]} —— ${row.field.how}`);
+      lines.push(`- 預期顯示：${row.field.display}`);
+      if (m.actual) lines.push(`- 畫面實際值：\`${m.actual}\``);
+      lines.push(`- 問題：${failed} ✗`);
+      if (m.note) lines.push(`- 備註：${m.note}`);
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // file:// 或權限受限時的退路
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    }
+  }
+
+  let toastTimer;
+  function toast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.add('toast--show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('toast--show'), 2200);
+  }
+
+  // ---------- Network 對帳清單 ----------
+
+  /**
+   * 讓 Network 面板裡的每一支 request 都對得到來源——多出來的就是 bug
+   * （重複請求 / 該去重沒去重），少了的就是查詢沒發出去。
+   */
+  function renderReconcile() {
+    const entries = Object.entries(PAGE.queries);
+    const usedBy = new Map();
+    for (const row of ROWS) {
+      for (const id of row.queryIds) {
+        if (!usedBy.has(id)) usedBy.set(id, []);
+        usedBy.get(id).push(row.section.title);
+      }
+    }
+
+    const rowsHtml = entries
+      .map(([id, query]) => {
+        const count = query.httpCount || 1;
+        const sections = [...new Set(usedBy.get(id) || [])];
+        const origin = query.origin ? PAGE.originLabels[query.origin] : '卡片資料';
+        const where = sections.length ? sections.join('、') : `<i>不對應任何欄位</i>`;
+        return (
+          `<tr class="${query.conditional ? 'reconcile--conditional' : ''}">` +
+          `<td><b>${esc(id)}</b></td>` +
+          `<td><code>${esc(query.endpoint.replace(/^GET /, ''))}</code></td>` +
+          `<td><code class="reconcile__filter">${esc(query.filter)}</code>` +
+          `<button class="btn" type="button" data-copy="${esc(id)}">複製</button></td>` +
+          `<td class="reconcile__count">${count} 支${query.conditional ? '<sup>*</sup>' : ''}</td>` +
+          `<td>${esc(origin)}</td>` +
+          `<td>${where}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    const conditional = entries.filter(([, q]) => q.conditional);
+    const conditionalNote = conditional.length
+      ? `<p class="reconcile__note"><sup>*</sup> 條件性請求，共 ${PAGE.stats.conditionalHttpCount} 支：` +
+        conditional.map(([id, q]) => `<b>${esc(id)}</b> ${esc(q.enabledWhen || '')}`).join('；') +
+        `</p>`
+      : '';
+
+    document.getElementById('reconcile-body').innerHTML =
+      `<p class="reconcile__lead">進頁後 Network 面板應出現 <b>${PAGE.stats.baseHttpCount} 支</b> request` +
+      `（不含條件性請求與瀏覽器自身的資源請求）。` +
+      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每分鐘再 ${PAGE.stats.perMinute} 支、` +
+      `每整點再 ${PAGE.stats.perHour - PAGE.stats.perMinute * 60} 支。</p>` +
+      `<table class="reconcile"><thead><tr>` +
+      `<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>` +
+      `</tr></thead><tbody>${rowsHtml}</tbody></table>` +
+      conditionalNote;
+  }
+
+  // ---------- 事件 ----------
+
+  document.getElementById('tbody').addEventListener('click', (event) => {
+    const mark = event.target.closest('.mark');
+    if (mark) {
+      const { id, kind, mark: value } = mark.dataset;
+      const entry = { ...markOf(id) };
+      const field = fieldOf(id);
+      if (entry[kind] === value) {
+        delete entry[kind];
+        delete entry[HASH_KEY[kind]];
+      } else {
+        entry[kind] = value;
+        // 只戳這一側的指紋——另一側的結論與其失效狀態不受影響。
+        entry[HASH_KEY[kind]] = field?.[HASH_KEY[kind]];
+      }
+      marks[id] = entry;
+      save();
+
+      // stale 狀態可能因這次標記而改變（重新標記即視為已重驗）→ 整列重畫。
+      if (state.status === 'all') patchRow(id);
+      else render();
+      return;
+    }
+
+    const copy = event.target.closest('[data-copy]');
+    if (copy) {
+      const query = PAGE.queries[copy.dataset.copy];
+      copyText(query.filter).then((ok) =>
+        toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+      );
+      return;
+    }
+
+    const expandBtn = event.target.closest('[data-expand]');
+    const rowEl = event.target.closest('tr.row');
+    const id = expandBtn
+      ? expandBtn.dataset.expand
+      : rowEl && !event.target.closest('input')
+        ? rowEl.dataset.id
+        : null;
+    if (id) {
+      if (state.expanded.has(id)) state.expanded.delete(id);
+      else state.expanded.add(id);
+      render();
+    }
+  });
+
+  let inputTimer;
+  document.getElementById('tbody').addEventListener('input', (event) => {
+    const input = event.target.closest('[data-input]');
+    if (!input) return;
+    const { id, input: kind } = input.dataset;
+    const entry = { ...markOf(id) };
+    if (input.value) entry[kind] = input.value;
+    else delete entry[kind];
+    marks[id] = entry;
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(save, 300);
+    // 不重繪：重繪會讓正在打字的輸入框失焦。值已即時寫入 marks，離開頁面前 debounce 存檔。
+  });
+
+  document.getElementById('search').addEventListener('input', (event) => {
+    state.search = event.target.value.trim().toLowerCase();
+    render();
+  });
+
+  for (const btn of document.querySelectorAll('[data-group]')) {
+    btn.addEventListener('click', () => {
+      state.group = btn.dataset.group;
+      for (const other of document.querySelectorAll('[data-group]')) {
+        other.setAttribute('aria-pressed', String(other === btn));
+      }
+      savePrefs();
+      render();
+    });
+  }
+
+  for (const btn of document.querySelectorAll('[data-status]')) {
+    btn.addEventListener('click', () => {
+      state.status = btn.dataset.status;
+      for (const other of document.querySelectorAll('[data-status]')) {
+        other.setAttribute('aria-pressed', String(other === btn));
+      }
+      render();
+    });
+  }
+
+  const reconcileDlg = document.getElementById('reconcile-dlg');
+  document.getElementById('reconcile').addEventListener('click', () => {
+    renderReconcile();
+    reconcileDlg.showModal();
+  });
+  document.getElementById('reconcile-close').addEventListener('click', () => reconcileDlg.close());
+  reconcileDlg.addEventListener('click', (event) => {
+    const copy = event.target.closest('[data-copy]');
+    if (!copy) return;
+    const query = PAGE.queries[copy.dataset.copy];
+    copyText(query.filter).then((ok) =>
+      toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+    );
+  });
+
+  document.getElementById('export').addEventListener('click', () => {
+    copyText(buildReport()).then((ok) =>
+      toast(ok ? '問題清單已複製為 markdown' : '複製失敗，請改用瀏覽器主控台'),
+    );
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    if (!confirm(`確定清空全部驗收標記？目前已驗 ${done}/${ROWS.length}，此動作無法復原。`)) return;
+    marks = {};
+    save();
+    render();
+    toast('已清空驗收標記');
+  });
+
+  // ---------- 啟動 ----------
+
+  const sectionCounts = countBy((row) => row.section.key);
+  buildMulti(
+    'filter-section',
+    '區塊',
+    PAGE.sections.map((section) => ({
+      value: section.key,
+      label: section.title,
+      count: sectionCounts.get(section.key) || 0,
+    })),
+    state.sections,
+  );
+
+  const queryCounts = countBy((row) => (row.queryIds.length ? row.queryIds : '__none__'));
+  buildMulti(
+    'filter-query',
+    '查詢',
+    [
+      ...Object.keys(PAGE.queries).map((id) => ({
+        value: id,
+        label: `${id} · ${PAGE.queries[id].endpoint.replace(/^GET /, '')}`,
+        count: queryCounts.get(id) || 0,
+      })),
+      { value: '__none__', label: '無查詢（前端生成）', count: queryCounts.get('__none__') || 0 },
+    ].filter((item) => item.count > 0),
+    state.queries,
+  );
+
+  const sourceCounts = countBy((row) => row.field.source);
+  buildMulti(
+    'filter-source',
+    '取得方式',
+    Object.keys(SOURCE_LABELS)
+      .map((key) => ({ value: key, label: SOURCE_LABELS[key], count: sourceCounts.get(key) || 0 }))
+      .filter((item) => item.count > 0),
+    state.sources,
+  );
+
+  for (const btn of document.querySelectorAll('[data-group]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.group === state.group));
+  }
+
+  render();
+})();
+
+    </script>
+  </body>
+</html>

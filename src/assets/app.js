@@ -1,0 +1,798 @@
+/* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
+(() => {
+  'use strict';
+
+  const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+  const STORE_KEY = `fieldproof:v1:${PAGE.page}`;
+  const PREF_KEY = `fieldproof:v1:${PAGE.page}:prefs`;
+
+  const SOURCE_LABELS = PAGE.sourceLabels;
+  const FLAG_META = PAGE.flagMeta;
+  const REFETCH_LABELS = { hourly: '每整點', minutely: '每整分', none: '不輪詢' };
+
+  // ---------- state ----------
+
+  /** 驗收標記：{ [id]: { data?: 'ok'|'ng', display?: 'ok'|'ng', actual?: string, note?: string } } */
+  let marks = read(STORE_KEY, {});
+  const prefs = read(PREF_KEY, {});
+
+  const state = {
+    group: prefs.group === 'query' ? 'query' : 'section',
+    search: '',
+    sections: new Set(),
+    queries: new Set(),
+    sources: new Set(),
+    status: 'all',
+    expanded: new Set(),
+  };
+
+  function read(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(marks));
+    } catch (error) {
+      console.warn('無法寫入 localStorage', error);
+    }
+  }
+
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify({ group: state.group }));
+    } catch {
+      /* 忽略：偏好存不了不影響驗收 */
+    }
+  }
+
+  // ---------- 資料攤平 ----------
+
+  /** 一列 = 一個欄位。id 為 `${section.key}/${field.id}`，是驗收狀態的穩定識別。 */
+  const ROWS = [];
+  for (const section of PAGE.sections) {
+    for (const field of section.fields) {
+      ROWS.push({
+        id: `${section.key}/${field.id}`,
+        section,
+        field,
+        queryIds: field.query === undefined ? [] : [].concat(field.query),
+      });
+    }
+  }
+
+  const markOf = (id) => marks[id] || {};
+  const fieldOf = (id) => ROWS.find((row) => row.id === id)?.field;
+
+  const HASH_KEY = { data: 'dataHash', display: 'displayHash' };
+
+  /**
+   * 某一側（資料 / 顯示）的結論是否已失效：標記當下記下的定義指紋與現在的不同，
+   * 代表 JSON 在那之後改過了，舊結論不可信。
+   *
+   * 兩側各自獨立——只改顯示規則時，「資料」的結論仍然有效。
+   */
+  const isStaleSide = (id, kind) => {
+    const m = markOf(id);
+    if (!m[kind]) return false;
+    const field = fieldOf(id);
+    if (!field) return false;
+    const stamped = m[HASH_KEY[kind]];
+    // 舊格式（未分側或無指紋）一律視為失效，保守要求重驗。
+    if (stamped === undefined) return true;
+    return stamped !== field[HASH_KEY[kind]];
+  };
+
+  const isStale = (id) => isStaleSide(id, 'data') || isStaleSide(id, 'display');
+
+  /** 已驗＝兩側都標過、且兩側都未失效。 */
+  const isVerified = (id) => {
+    const m = markOf(id);
+    return (
+      Boolean(m.data) &&
+      Boolean(m.display) &&
+      !isStaleSide(id, 'data') &&
+      !isStaleSide(id, 'display')
+    );
+  };
+
+  /** 有問題＝任一側標為 ✗ 且該側結論仍有效。 */
+  const hasProblem = (id) => {
+    const m = markOf(id);
+    return (
+      (m.data === 'ng' && !isStaleSide(id, 'data')) ||
+      (m.display === 'ng' && !isStaleSide(id, 'display'))
+    );
+  };
+
+  // ---------- 篩選 ----------
+
+  function matches(row) {
+    if (state.sections.size && !state.sections.has(row.section.key)) return false;
+
+    if (state.queries.size) {
+      const hit = row.queryIds.some((q) => state.queries.has(q));
+      const noneSelected = state.queries.has('__none__') && row.queryIds.length === 0;
+      if (!hit && !noneSelected) return false;
+    }
+
+    if (state.sources.size && !state.sources.has(row.field.source)) return false;
+
+    if (state.status === 'unverified' && isVerified(row.id)) return false;
+    if (state.status === 'problem' && !hasProblem(row.id)) return false;
+    if (state.status === 'stale' && !isStale(row.id)) return false;
+
+    if (state.search) {
+      const m = markOf(row.id);
+      const haystack = [
+        row.section.title,
+        row.field.label,
+        row.field.resp,
+        row.field.how,
+        row.field.display,
+        row.field.note || '',
+        m.note || '',
+        m.actual || '',
+        row.queryIds.join(' '),
+      ]
+        .join(' ')
+        .toLowerCase();
+      if (!haystack.includes(state.search)) return false;
+    }
+
+    return true;
+  }
+
+  /** 依目前分組模式，把通過篩選的列切成群組。 */
+  function buildGroups(rows) {
+    if (state.group === 'section') {
+      return PAGE.sections
+        .map((section) => ({
+          kind: 'section',
+          key: section.key,
+          section,
+          rows: rows.filter((row) => row.section.key === section.key),
+        }))
+        .filter((group) => group.rows.length);
+    }
+
+    const groups = Object.entries(PAGE.queries)
+      .map(([id, query]) => ({
+        kind: 'query',
+        key: id,
+        query,
+        rows: rows.filter((row) => row.queryIds.includes(id)),
+      }))
+      .filter((group) => group.rows.length);
+
+    const orphans = rows.filter((row) => row.queryIds.length === 0);
+    if (orphans.length) {
+      groups.push({ kind: 'query', key: '__none__', query: null, rows: orphans });
+    }
+    return groups;
+  }
+
+  // ---------- 渲染 ----------
+
+  const esc = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+  /** 極簡 inline markdown：只處理 **粗體**，供 checks 標出「不是 0」這類重點。 */
+  const inlineMd = (text) => text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+
+  function srcChip(source) {
+    return `<span class="src src--${esc(source)}">${esc(SOURCE_LABELS[source])}</span>`;
+  }
+
+  function flagIcons(field) {
+    if (!field.flags || !field.flags.length) return '';
+    const title = field.flags.map((f) => FLAG_META[f].label).join('；');
+    const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
+    return `<span class="field-flags" title="${esc(title)}">${icons}</span>`;
+  }
+
+  function queryChips(row) {
+    if (!row.queryIds.length) return '<span class="resp--none">—</span>';
+    return row.queryIds
+      .map((id) => {
+        const query = PAGE.queries[id];
+        const title = query
+          ? `${query.endpoint}\n${Object.entries(query.params)
+              .map(([k, v]) => `${k}=${v}`)
+              .join('\n')}`
+          : id;
+        return `<span class="qchip" title="${esc(title)}">${esc(id)}</span>`;
+      })
+      .join('');
+  }
+
+  function markCell(row, kind) {
+    const current = markOf(row.id)[kind];
+    const stale = isStaleSide(row.id, kind);
+    const btn = (value, label) =>
+      `<button class="mark" type="button" data-id="${esc(row.id)}" data-kind="${kind}" ` +
+      `data-mark="${value}" aria-pressed="${current === value}" ` +
+      `aria-label="${esc(row.section.title)} ${esc(row.field.label)} ${
+        kind === 'data' ? '資料' : '顯示'
+      }${label}">${value === 'ok' ? '✓' : '✗'}</button>`;
+    return (
+      `<div class="marks${stale ? ' marks--stale' : ''}"` +
+      (stale ? ` title="這一側的定義在上次標記後改過了，請重驗"` : '') +
+      `>${btn('ok', '正確')}${btn('ng', '有問題')}</div>`
+    );
+  }
+
+  function rowHtml(row) {
+    const m = markOf(row.id);
+    const expanded = state.expanded.has(row.id);
+    const stale = isStale(row.id);
+    const resp =
+      row.field.resp === '—'
+        ? '<span class="resp resp--none">—（不來自 API）</span>'
+        : `<span class="resp">${esc(row.field.resp)}</span>`;
+
+    return (
+      `<tr class="row${expanded ? ' row--expanded' : ''}${hasProblem(row.id) ? ' row--ng' : ''}` +
+      `${stale ? ' row--stale' : ''}" data-id="${esc(row.id)}">` +
+      `<td><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
+      `aria-expanded="${expanded}" aria-label="展開細節">${expanded ? '▾' : '▸'}</button></td>` +
+      `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field)}` +
+      (stale
+        ? `<span class="stale-tag" title="上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗">⟳ ${
+            isStaleSide(row.id, 'data') && isStaleSide(row.id, 'display')
+              ? '定義已變更'
+              : isStaleSide(row.id, 'data')
+                ? '取值定義已變更'
+                : '顯示定義已變更'
+          }</span>`
+        : '') +
+      (row.field.checks
+        ? `<span class="checks-tag" title="展開可見 ${row.field.checks.length} 條驗證檢查點">${row.field.checks.length} 檢查點</span>`
+        : '') +
+      `</td>` +
+      `<td>${queryChips(row)}</td>` +
+      `<td>${resp}</td>` +
+      `<td><div class="how"><span>${srcChip(row.field.source)}${esc(row.field.how)}</span>` +
+      `<span class="how__display">${esc(row.field.display)}</span></div></td>` +
+      `<td class="cell-actual"><input class="cell-input cell-input--actual" type="text" ` +
+      `data-input="actual" data-id="${esc(row.id)}" name="actual:${esc(row.id)}" ` +
+      `value="${esc(m.actual || '')}" placeholder="畫面上看到的值" aria-label="畫面實際值"></td>` +
+      `<td>${markCell(row, 'data')}</td>` +
+      `<td>${markCell(row, 'display')}</td>` +
+      `<td class="cell-note"><input class="cell-input" type="text" data-input="note" ` +
+      `data-id="${esc(row.id)}" name="note:${esc(row.id)}" value="${esc(m.note || '')}" ` +
+      `placeholder="備註" aria-label="備註"></td>` +
+      `</tr>` +
+      (expanded ? detailHtml(row) : '')
+    );
+  }
+
+  function detailHtml(row) {
+    const boxes = row.queryIds.map((id) => {
+      const query = PAGE.queries[id];
+      if (!query) return '';
+      const params = Object.entries(query.params)
+        .map(([k, v]) => `<div class="detail__row"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`)
+        .join('');
+      return (
+        `<div class="detail__box">` +
+        `<div class="detail__title">${esc(id)} · ${REFETCH_LABELS[query.refetch]}` +
+        (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
+        `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button></div>` +
+        `<div class="detail__row"><dt>篩選字串</dt><dd><b>${esc(query.filter)}</b></dd></div>` +
+        `<div class="detail__row"><dt>端點</dt><dd>${esc(query.endpoint)}</dd></div>` +
+        `<div class="detail__row"><dt>SDK</dt><dd>${esc(query.sdk)}</dd></div>` +
+        params +
+        (query.enabledWhen
+          ? `<div class="detail__row"><dt>啟用條件</dt><dd>${esc(query.enabledWhen)}</dd></div>`
+          : '') +
+        (query.filterNote
+          ? `<p class="detail__note"><b>篩選提醒：</b>${esc(query.filterNote)}</p>`
+          : '') +
+        (query.note ? `<p class="detail__note">${esc(query.note)}</p>` : '') +
+        `</div>`
+      );
+    });
+
+    if (row.field.checks && row.field.checks.length) {
+      boxes.unshift(
+        `<div class="detail__box detail__box--checks">` +
+          `<div class="detail__title">怎麼驗（${row.field.checks.length} 條）</div>` +
+          `<table class="checks"><thead><tr><th>給定</th><th>畫面應該</th></tr></thead><tbody>` +
+          row.field.checks
+            .map(
+              (c) =>
+                `<tr><td><code>${esc(c.given)}</code></td><td>${inlineMd(esc(c.expect))}</td></tr>`,
+            )
+            .join('') +
+          `</tbody></table></div>`,
+      );
+    }
+
+    const notes = [];
+    if (row.field.flags && row.field.flags.length) {
+      notes.push(
+        row.field.flags
+          .map((f) => `<b>${FLAG_META[f].icon} ${esc(FLAG_META[f].label)}</b>`)
+          .join(' '),
+      );
+    }
+    if (row.field.note) notes.push(esc(row.field.note));
+    if (row.section.emptyRule) notes.push(`<b>空狀態：</b>${esc(row.section.emptyRule)}`);
+
+    if (notes.length) {
+      boxes.push(
+        `<div class="detail__box"><div class="detail__title">註記</div>` +
+          notes.map((n) => `<p class="detail__note">${n}</p>`).join('') +
+          `</div>`,
+      );
+    }
+
+    if (!boxes.length) {
+      boxes.push(
+        `<div class="detail__box"><div class="detail__title">註記</div>` +
+          `<p class="detail__note">此欄位不來自任何 API，由前端生成。</p></div>`,
+      );
+    }
+
+    return `<tr class="detail"><td colspan="9"><div class="detail__grid">${boxes.join('')}</div></td></tr>`;
+  }
+
+  function groupHeadHtml(group) {
+    const done = group.rows.filter((row) => isVerified(row.id)).length;
+    const ng = group.rows.filter((row) => hasProblem(row.id)).length;
+    const progress =
+      `${done}/${group.rows.length} 已驗` +
+      (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+
+    if (group.kind === 'section') {
+      const section = group.section;
+      const meta = Object.entries(section.meta || {})
+        .map(([k, v]) => `${esc(k)} ${esc(v)}`)
+        .join(' ・ ');
+      return (
+        `<tr class="group"><td colspan="9">` +
+        `<div class="group__head"><span class="group__title">${esc(section.title)}</span>` +
+        `<span class="group__key">${esc(section.key)}</span>` +
+        `<span class="group__meta">${esc(PAGE.sectionKindLabels[section.kind])}${meta ? ' ・ ' + meta : ''}</span>` +
+        (section.emptyRule
+          ? `<span class="group__info" title="空狀態：${esc(section.emptyRule)}">ⓘ 空狀態</span>`
+          : '') +
+        `<span class="group__progress">${progress}</span></div>` +
+        `</td></tr>`
+      );
+    }
+
+    if (!group.query) {
+      return (
+        `<tr class="group"><td colspan="9"><div class="group__head">` +
+        `<span class="group__title">無查詢（前端生成）</span>` +
+        `<span class="group__meta">X 軸 labels、硬編單位、local UI state</span>` +
+        `<span class="group__progress">${progress}</span></div></td></tr>`
+      );
+    }
+
+    const query = group.query;
+    const params = Object.entries(query.params)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' · ');
+    return (
+      `<tr class="group"><td colspan="9">` +
+      `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
+      `<span class="group__key">${esc(query.endpoint)} ・ ${REFETCH_LABELS[query.refetch]}${
+        query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
+      }</span>` +
+      `<span class="group__meta" title="${esc(params)}">` +
+      `<code class="group__filter">${esc(query.filter)}</code> ${esc(params)}</span>` +
+      `<button class="btn" type="button" data-copy="${esc(group.key)}" ` +
+      `title="複製「${esc(query.filter)}」貼進 DevTools Network filter">複製篩選</button>` +
+      `<span class="group__progress">${progress}</span></div>` +
+      `</td></tr>`
+    );
+  }
+
+  let visibleCount = ROWS.length;
+
+  function render() {
+    const rows = ROWS.filter(matches);
+    visibleCount = rows.length;
+    const groups = buildGroups(rows);
+    const body = document.getElementById('tbody');
+
+    body.innerHTML = groups.length
+      ? groups.map((g) => groupHeadHtml(g) + g.rows.map(rowHtml).join('')).join('')
+      : `<tr><td colspan="9"><div class="empty-state">沒有符合條件的欄位</div></td></tr>`;
+
+    renderProgress(rows.length);
+  }
+
+  function renderProgress(visible) {
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    const ng = ROWS.filter((row) => hasProblem(row.id)).length;
+    document.getElementById('progress-done').textContent = `${done}/${ROWS.length}`;
+    document.getElementById('progress-ng').textContent = ng ? `${ng} 有問題` : '無問題';
+    document.getElementById('progress-ng').classList.toggle('progress__problem', ng > 0);
+    document.getElementById('progress-fill').style.width =
+      `${ROWS.length ? (done / ROWS.length) * 100 : 0}%`;
+    document.getElementById('visible-count').textContent =
+      visible === ROWS.length ? '' : `（篩選中：${visible}）`;
+  }
+
+  /**
+   * 標記後的局部更新：重繪整個 tbody 會讓正在編輯的備註 / 實際值輸入框失焦，
+   * 故只改動該列自身、其所屬分組的進度與頁首進度。
+   * 只有當篩選條件與標記狀態相關（只看未驗 / 只看有問題）時，該列可能要進出視野，
+   * 這時才需要整表重算。
+   */
+  function patchRow(id) {
+    const rowEl = document.querySelector(`tr.row[data-id="${id}"]`);
+    if (!rowEl) return;
+
+    const m = markOf(id);
+    for (const btn of rowEl.querySelectorAll('.mark')) {
+      btn.setAttribute('aria-pressed', String(m[btn.dataset.kind] === btn.dataset.mark));
+    }
+    rowEl.classList.toggle('row--ng', hasProblem(id));
+    rowEl.classList.toggle('row--stale', isStale(id));
+    for (const marks of rowEl.querySelectorAll('.marks')) {
+      const kind = marks.querySelector('.mark')?.dataset.kind;
+      marks.classList.toggle('marks--stale', kind ? isStaleSide(id, kind) : false);
+    }
+    const staleTag = rowEl.querySelector('.stale-tag');
+    if (staleTag && !isStale(id)) staleTag.remove();
+
+    patchGroupProgress(rowEl);
+    renderProgress(visibleCount);
+  }
+
+  /** 重算該列所屬分組的「N/M 已驗」。 */
+  function patchGroupProgress(rowEl) {
+    let groupEl = rowEl.previousElementSibling;
+    while (groupEl && !groupEl.classList.contains('group')) {
+      groupEl = groupEl.previousElementSibling;
+    }
+    if (!groupEl) return;
+
+    const ids = [];
+    for (let cursor = groupEl.nextElementSibling; cursor; cursor = cursor.nextElementSibling) {
+      if (cursor.classList.contains('group')) break;
+      if (cursor.classList.contains('row')) ids.push(cursor.dataset.id);
+    }
+
+    const done = ids.filter(isVerified).length;
+    const ng = ids.filter(hasProblem).length;
+    groupEl.querySelector('.group__progress').innerHTML =
+      `${done}/${ids.length} 已驗` + (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+  }
+
+  // ---------- 多選篩選器 ----------
+
+  function buildMulti(id, label, items, target) {
+    const host = document.getElementById(id);
+    host.querySelector('.multi__panel').innerHTML = items
+      .map(
+        (item) =>
+          `<label class="multi__item"><input type="checkbox" name="${esc(id)}" ` +
+          `value="${esc(item.value)}">` +
+          `<span>${esc(item.label)}</span><span>${item.count}</span></label>`,
+      )
+      .join('');
+
+    host.addEventListener('change', (event) => {
+      const input = event.target;
+      if (input.type !== 'checkbox') return;
+      if (input.checked) target.add(input.value);
+      else target.delete(input.value);
+      const badge = host.querySelector('.multi__count');
+      badge.textContent = target.size || '';
+      badge.style.display = target.size ? '' : 'none';
+      render();
+    });
+  }
+
+  function countBy(getKey) {
+    const counts = new Map();
+    for (const row of ROWS) {
+      for (const key of [].concat(getKey(row))) {
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    return counts;
+  }
+
+  // ---------- 匯出 ----------
+
+  function buildReport() {
+    const problems = ROWS.filter((row) => hasProblem(row.id));
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    const lines = [
+      `## ${PAGE.title} 驗收問題清單`,
+      '',
+      `已驗 ${done}/${ROWS.length} · 有問題 ${problems.length}`,
+      '',
+    ];
+
+    if (!problems.length) {
+      lines.push('全數通過，無標記為有問題的欄位。');
+      return lines.join('\n');
+    }
+
+    for (const row of problems) {
+      const m = markOf(row.id);
+      const failed = [m.data === 'ng' ? '資料' : null, m.display === 'ng' ? '顯示' : null]
+        .filter(Boolean)
+        .join('、');
+      lines.push(`### ${row.section.title} · ${row.field.label}`);
+      for (const id of row.queryIds) {
+        const query = PAGE.queries[id];
+        const params = Object.entries(query.params)
+          .map(([k, v]) => `${k}=${v}`)
+          .join(' · ');
+        lines.push(`- 查詢：${id} \`${query.endpoint}\`（${params}）`);
+      }
+      if (!row.queryIds.length) lines.push('- 查詢：—（前端生成）');
+      lines.push(`- response：\`${row.field.resp}\``);
+      lines.push(`- 預期取值：${SOURCE_LABELS[row.field.source]} —— ${row.field.how}`);
+      lines.push(`- 預期顯示：${row.field.display}`);
+      if (m.actual) lines.push(`- 畫面實際值：\`${m.actual}\``);
+      lines.push(`- 問題：${failed} ✗`);
+      if (m.note) lines.push(`- 備註：${m.note}`);
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // file:// 或權限受限時的退路
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      return ok;
+    }
+  }
+
+  let toastTimer;
+  function toast(message) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.add('toast--show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('toast--show'), 2200);
+  }
+
+  // ---------- Network 對帳清單 ----------
+
+  /**
+   * 讓 Network 面板裡的每一支 request 都對得到來源——多出來的就是 bug
+   * （重複請求 / 該去重沒去重），少了的就是查詢沒發出去。
+   */
+  function renderReconcile() {
+    const entries = Object.entries(PAGE.queries);
+    const usedBy = new Map();
+    for (const row of ROWS) {
+      for (const id of row.queryIds) {
+        if (!usedBy.has(id)) usedBy.set(id, []);
+        usedBy.get(id).push(row.section.title);
+      }
+    }
+
+    const rowsHtml = entries
+      .map(([id, query]) => {
+        const count = query.httpCount || 1;
+        const sections = [...new Set(usedBy.get(id) || [])];
+        const origin = query.origin ? PAGE.originLabels[query.origin] : '卡片資料';
+        const where = sections.length ? sections.join('、') : `<i>不對應任何欄位</i>`;
+        return (
+          `<tr class="${query.conditional ? 'reconcile--conditional' : ''}">` +
+          `<td><b>${esc(id)}</b></td>` +
+          `<td><code>${esc(query.endpoint.replace(/^GET /, ''))}</code></td>` +
+          `<td><code class="reconcile__filter">${esc(query.filter)}</code>` +
+          `<button class="btn" type="button" data-copy="${esc(id)}">複製</button></td>` +
+          `<td class="reconcile__count">${count} 支${query.conditional ? '<sup>*</sup>' : ''}</td>` +
+          `<td>${esc(origin)}</td>` +
+          `<td>${where}</td>` +
+          `</tr>`
+        );
+      })
+      .join('');
+
+    const conditional = entries.filter(([, q]) => q.conditional);
+    const conditionalNote = conditional.length
+      ? `<p class="reconcile__note"><sup>*</sup> 條件性請求，共 ${PAGE.stats.conditionalHttpCount} 支：` +
+        conditional.map(([id, q]) => `<b>${esc(id)}</b> ${esc(q.enabledWhen || '')}`).join('；') +
+        `</p>`
+      : '';
+
+    document.getElementById('reconcile-body').innerHTML =
+      `<p class="reconcile__lead">進頁後 Network 面板應出現 <b>${PAGE.stats.baseHttpCount} 支</b> request` +
+      `（不含條件性請求與瀏覽器自身的資源請求）。` +
+      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每分鐘再 ${PAGE.stats.perMinute} 支、` +
+      `每整點再 ${PAGE.stats.perHour - PAGE.stats.perMinute * 60} 支。</p>` +
+      `<table class="reconcile"><thead><tr>` +
+      `<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>` +
+      `</tr></thead><tbody>${rowsHtml}</tbody></table>` +
+      conditionalNote;
+  }
+
+  // ---------- 事件 ----------
+
+  document.getElementById('tbody').addEventListener('click', (event) => {
+    const mark = event.target.closest('.mark');
+    if (mark) {
+      const { id, kind, mark: value } = mark.dataset;
+      const entry = { ...markOf(id) };
+      const field = fieldOf(id);
+      if (entry[kind] === value) {
+        delete entry[kind];
+        delete entry[HASH_KEY[kind]];
+      } else {
+        entry[kind] = value;
+        // 只戳這一側的指紋——另一側的結論與其失效狀態不受影響。
+        entry[HASH_KEY[kind]] = field?.[HASH_KEY[kind]];
+      }
+      marks[id] = entry;
+      save();
+
+      // stale 狀態可能因這次標記而改變（重新標記即視為已重驗）→ 整列重畫。
+      if (state.status === 'all') patchRow(id);
+      else render();
+      return;
+    }
+
+    const copy = event.target.closest('[data-copy]');
+    if (copy) {
+      const query = PAGE.queries[copy.dataset.copy];
+      copyText(query.filter).then((ok) =>
+        toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+      );
+      return;
+    }
+
+    const expandBtn = event.target.closest('[data-expand]');
+    const rowEl = event.target.closest('tr.row');
+    const id = expandBtn
+      ? expandBtn.dataset.expand
+      : rowEl && !event.target.closest('input')
+        ? rowEl.dataset.id
+        : null;
+    if (id) {
+      if (state.expanded.has(id)) state.expanded.delete(id);
+      else state.expanded.add(id);
+      render();
+    }
+  });
+
+  let inputTimer;
+  document.getElementById('tbody').addEventListener('input', (event) => {
+    const input = event.target.closest('[data-input]');
+    if (!input) return;
+    const { id, input: kind } = input.dataset;
+    const entry = { ...markOf(id) };
+    if (input.value) entry[kind] = input.value;
+    else delete entry[kind];
+    marks[id] = entry;
+    clearTimeout(inputTimer);
+    inputTimer = setTimeout(save, 300);
+    // 不重繪：重繪會讓正在打字的輸入框失焦。值已即時寫入 marks，離開頁面前 debounce 存檔。
+  });
+
+  document.getElementById('search').addEventListener('input', (event) => {
+    state.search = event.target.value.trim().toLowerCase();
+    render();
+  });
+
+  for (const btn of document.querySelectorAll('[data-group]')) {
+    btn.addEventListener('click', () => {
+      state.group = btn.dataset.group;
+      for (const other of document.querySelectorAll('[data-group]')) {
+        other.setAttribute('aria-pressed', String(other === btn));
+      }
+      savePrefs();
+      render();
+    });
+  }
+
+  for (const btn of document.querySelectorAll('[data-status]')) {
+    btn.addEventListener('click', () => {
+      state.status = btn.dataset.status;
+      for (const other of document.querySelectorAll('[data-status]')) {
+        other.setAttribute('aria-pressed', String(other === btn));
+      }
+      render();
+    });
+  }
+
+  const reconcileDlg = document.getElementById('reconcile-dlg');
+  document.getElementById('reconcile').addEventListener('click', () => {
+    renderReconcile();
+    reconcileDlg.showModal();
+  });
+  document.getElementById('reconcile-close').addEventListener('click', () => reconcileDlg.close());
+  reconcileDlg.addEventListener('click', (event) => {
+    const copy = event.target.closest('[data-copy]');
+    if (!copy) return;
+    const query = PAGE.queries[copy.dataset.copy];
+    copyText(query.filter).then((ok) =>
+      toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+    );
+  });
+
+  document.getElementById('export').addEventListener('click', () => {
+    copyText(buildReport()).then((ok) =>
+      toast(ok ? '問題清單已複製為 markdown' : '複製失敗，請改用瀏覽器主控台'),
+    );
+  });
+
+  document.getElementById('reset').addEventListener('click', () => {
+    const done = ROWS.filter((row) => isVerified(row.id)).length;
+    if (!confirm(`確定清空全部驗收標記？目前已驗 ${done}/${ROWS.length}，此動作無法復原。`)) return;
+    marks = {};
+    save();
+    render();
+    toast('已清空驗收標記');
+  });
+
+  // ---------- 啟動 ----------
+
+  const sectionCounts = countBy((row) => row.section.key);
+  buildMulti(
+    'filter-section',
+    '區塊',
+    PAGE.sections.map((section) => ({
+      value: section.key,
+      label: section.title,
+      count: sectionCounts.get(section.key) || 0,
+    })),
+    state.sections,
+  );
+
+  const queryCounts = countBy((row) => (row.queryIds.length ? row.queryIds : '__none__'));
+  buildMulti(
+    'filter-query',
+    '查詢',
+    [
+      ...Object.keys(PAGE.queries).map((id) => ({
+        value: id,
+        label: `${id} · ${PAGE.queries[id].endpoint.replace(/^GET /, '')}`,
+        count: queryCounts.get(id) || 0,
+      })),
+      { value: '__none__', label: '無查詢（前端生成）', count: queryCounts.get('__none__') || 0 },
+    ].filter((item) => item.count > 0),
+    state.queries,
+  );
+
+  const sourceCounts = countBy((row) => row.field.source);
+  buildMulti(
+    'filter-source',
+    '取得方式',
+    Object.keys(SOURCE_LABELS)
+      .map((key) => ({ value: key, label: SOURCE_LABELS[key], count: sourceCounts.get(key) || 0 }))
+      .filter((item) => item.count > 0),
+    state.sources,
+  );
+
+  for (const btn of document.querySelectorAll('[data-group]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.group === state.group));
+  }
+
+  render();
+})();

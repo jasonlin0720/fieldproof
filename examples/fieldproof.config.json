@@ -1,0 +1,6 @@
+{
+  "dataDir": "data",
+  "outDir": ".",
+  "locale": "zh-TW",
+  "command": "pnpm example"
+}

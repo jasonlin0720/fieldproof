@@ -1,0 +1,206 @@
+{
+  "page": "dashboard",
+  "title": "書店後台總覽",
+  "route": "/admin/dashboard",
+  "auditedAt": "2026-08-19",
+  "sources": [
+    "src/composables/useDashboardData.ts",
+    "src/components/dashboard/SalesCard.vue",
+    "src/components/dashboard/StockTable.vue"
+  ],
+  "queries": {
+    "Q1": {
+      "endpoint": "GET /api/orders/summary",
+      "sdk": "getOrderSummary",
+      "params": { "From": "當日 00:00", "To": "now" },
+      "filter": "orders/summary",
+      "refetch": "minutely",
+      "enabledWhen": "已登入且 storeId 為有效數字"
+    },
+    "Q2": {
+      "endpoint": "GET /api/orders",
+      "sdk": "getOrders",
+      "params": { "Page": "1", "PageSize": "9999", "Status": "paid" },
+      "filter": "Page=1&PageSize=9999",
+      "filterNote": "會一併匹配到 Q3；以 `Status=paid` 再篩一次即可分辨。",
+      "refetch": "hourly",
+      "httpCount": 2,
+      "note": "分頁端點，一次取全量以便前端自行彙總。"
+    },
+    "Q3": {
+      "endpoint": "GET /api/inventory",
+      "sdk": "getInventory",
+      "params": { "Page": "1", "PageSize": "9999" },
+      "filter": "/api/inventory",
+      "refetch": "hourly"
+    },
+    "Q4": {
+      "endpoint": "GET /api/stores",
+      "sdk": "getStores",
+      "params": {},
+      "filter": "/api/stores",
+      "refetch": "none",
+      "origin": "layout",
+      "note": "版面層的分店切換器自打，不屬於任何卡片。"
+    },
+    "Q5": {
+      "endpoint": "GET /api/orders/refunds",
+      "sdk": "getRefunds",
+      "params": { "From": "當月 1 日", "To": "now" },
+      "filter": "orders/refunds",
+      "refetch": "hourly",
+      "conditional": true,
+      "note": "退款卡片預設收合，展開後才發。"
+    }
+  },
+  "sections": [
+    {
+      "key": "sales-summary",
+      "kind": "card",
+      "title": "今日業績",
+      "meta": { "位置": "左上", "深連結": "/admin/orders" },
+      "emptyRule": "整卡無資料時顯示「今日尚無訂單」，不畫骨架。",
+      "fields": [
+        {
+          "id": "revenue",
+          "label": "今日營收",
+          "query": "Q1",
+          "resp": "totals.revenue",
+          "source": "backend-agg",
+          "how": "後端已加總，直接取用",
+          "display": "千分位 + 「元」；null → —",
+          "checks": [
+            { "given": "response = 1234567", "expect": "1,234,567 元" },
+            { "given": "response = null", "expect": "—" },
+            { "given": "response = 0", "expect": "0 元" }
+          ]
+        },
+        {
+          "id": "order-count",
+          "label": "訂單數",
+          "query": "Q1",
+          "resp": "totals.orderCount",
+          "source": "direct",
+          "how": "API 欄位直取",
+          "display": "整數；null → —"
+        },
+        {
+          "id": "avg-order-value",
+          "label": "客單價",
+          "query": "Q1",
+          "resp": "—",
+          "source": "fe-derive",
+          "how": "前端換算：revenue ÷ orderCount",
+          "display": "四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —",
+          "flags": ["fragile"],
+          "note": "分母為 0 的情形後端不保證不會出現，前端須自行擋。",
+          "checks": [{ "given": "orderCount = 0", "expect": "—（不可顯示 NaN 或 Infinity）" }]
+        },
+        {
+          "id": "refund-total",
+          "label": "本月退款",
+          "query": "Q5",
+          "resp": "totals.refundAmount",
+          "source": "backend-agg",
+          "how": "後端已加總，直接取用",
+          "display": "千分位 + 「元」；null → —",
+          "flags": ["backend-pending"],
+          "note": "後端仍在確認退款是否含手續費，數字可能再變。"
+        }
+      ]
+    },
+    {
+      "key": "sales-trend",
+      "kind": "chart",
+      "title": "近 7 日營收趨勢",
+      "fields": [
+        {
+          "id": "trend-series",
+          "label": "折線資料",
+          "query": "Q2",
+          "resp": "items[].paidAt / items[].amount",
+          "source": "fe-agg",
+          "how": "前端依 paidAt 分日 bucket 後加總 amount",
+          "display": "無資料的日子畫斷點，不連線"
+        },
+        {
+          "id": "trend-labels",
+          "label": "X 軸標籤",
+          "resp": "—",
+          "source": "fe-const",
+          "how": "前端生成近 7 日日期，不來自 API",
+          "display": "MM/DD"
+        },
+        {
+          "id": "trend-peak",
+          "label": "峰值標記",
+          "query": "Q2",
+          "resp": "items[].amount",
+          "source": "fe-pick",
+          "how": "前端取分日加總後的最大值那一日",
+          "display": "該點加圓點標記與數值標籤；全為 0 時不標"
+        }
+      ]
+    },
+    {
+      "key": "stock-table",
+      "kind": "table",
+      "title": "低庫存品項",
+      "emptyRule": "無低庫存品項時顯示「庫存水位正常」。",
+      "fields": [
+        {
+          "id": "isbn",
+          "label": "ISBN",
+          "query": "Q3",
+          "resp": "items[].isbn",
+          "source": "direct",
+          "how": "API 欄位直取",
+          "display": "等寬字體；空字串 → —"
+        },
+        {
+          "id": "title",
+          "label": "書名",
+          "query": "Q3",
+          "resp": "items[].title",
+          "source": "direct",
+          "how": "API 欄位直取",
+          "display": "超長截斷加 tooltip"
+        },
+        {
+          "id": "stock",
+          "label": "剩餘庫存",
+          "query": "Q3",
+          "resp": "items[].stock",
+          "source": "direct",
+          "how": "API 欄位直取",
+          "display": "整數；< 10 時數字轉紅",
+          "checks": [
+            { "given": "stock = 9", "expect": "紅色 9" },
+            { "given": "stock = 10", "expect": "一般色 10" }
+          ]
+        },
+        {
+          "id": "store-name",
+          "label": "所屬分店",
+          "query": ["Q3", "Q4"],
+          "resp": "items[].storeId → stores[].name",
+          "source": "fe-derive",
+          "how": "以 storeId 對 Q4 的分店清單查表換名稱",
+          "display": "查無對應時顯示原始 storeId",
+          "flags": ["exception"],
+          "note": "全站其他表格由後端直接回名稱，只有此處是前端查表——後端此端點未帶 storeName。"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "title": "Q2 一次取全量的理由",
+      "body": "趨勢圖需要整段序列，分頁取會讓前端得自行串頁；與後端確認過資料量上限後改為一次取全量。"
+    },
+    {
+      "title": "退款卡片的條件性請求",
+      "body": "Q5 只在卡片展開時才發，故 Network 對帳時進頁不會看到它——這是預期行為，不是漏打。"
+    }
+  ]
+}
