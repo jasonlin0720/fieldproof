@@ -1,0 +1,9 @@
+# 生成物：由 fieldproof 自己產出，格式化會讓 `--check` 失敗
+examples/*.html
+examples/*.md
+
+# 快照：儲存的是逐字輸出，格式化會改掉被比對的內容
+tests/__snapshots__/
+
+dist/
+pnpm-lock.yaml

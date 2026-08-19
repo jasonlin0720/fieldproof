@@ -94,6 +94,7 @@ function assertUniqueIds(file: string, page: FieldMapPage): void {
 function assertUniqueFilters(file: string, page: FieldMapPage): void {
   const seen = new Map<string, string>();
   for (const [id, query] of Object.entries(page.queries)) {
+    if (query.filter === undefined) continue;
     const owner = seen.get(query.filter);
     if (owner !== undefined) {
       throw new Error(

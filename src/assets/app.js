@@ -287,8 +287,13 @@
         `<div class="detail__box">` +
         `<div class="detail__title">${esc(id)} · ${REFETCH_LABELS[query.refetch]}` +
         (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
-        `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button></div>` +
-        `<div class="detail__row"><dt>篩選字串</dt><dd><b>${esc(query.filter)}</b></dd></div>` +
+        (query.filter
+          ? `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button>`
+          : '') +
+        `</div>` +
+        (query.filter
+          ? `<div class="detail__row"><dt>篩選字串</dt><dd><b>${esc(query.filter)}</b></dd></div>`
+          : '') +
         `<div class="detail__row"><dt>端點</dt><dd>${esc(query.endpoint)}</dd></div>` +
         `<div class="detail__row"><dt>SDK</dt><dd>${esc(query.sdk)}</dd></div>` +
         params +
@@ -392,9 +397,12 @@
         query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
       }</span>` +
       `<span class="group__meta" title="${esc(params)}">` +
-      `<code class="group__filter">${esc(query.filter)}</code> ${esc(params)}</span>` +
-      `<button class="btn" type="button" data-copy="${esc(group.key)}" ` +
-      `title="複製「${esc(query.filter)}」貼進 DevTools Network filter">複製篩選</button>` +
+      (query.filter ? `<code class="group__filter">${esc(query.filter)}</code> ` : '') +
+      `${esc(params)}</span>` +
+      (query.filter
+        ? `<button class="btn" type="button" data-copy="${esc(group.key)}" ` +
+          `title="複製「${esc(query.filter)}」貼進 DevTools Network filter">複製篩選</button>`
+        : '') +
       `<span class="group__progress">${progress}</span></div>` +
       `</td></tr>`
     );
@@ -605,8 +613,12 @@
           `<tr class="${query.conditional ? 'reconcile--conditional' : ''}">` +
           `<td><b>${esc(id)}</b></td>` +
           `<td><code>${esc(query.endpoint.replace(/^GET /, ''))}</code></td>` +
-          `<td><code class="reconcile__filter">${esc(query.filter)}</code>` +
-          `<button class="btn" type="button" data-copy="${esc(id)}">複製</button></td>` +
+          `<td>` +
+          (query.filter
+            ? `<code class="reconcile__filter">${esc(query.filter)}</code>` +
+              `<button class="btn" type="button" data-copy="${esc(id)}">複製</button>`
+            : '<i>未設定</i>') +
+          `</td>` +
           `<td class="reconcile__count">${count} 支${query.conditional ? '<sup>*</sup>' : ''}</td>` +
           `<td>${esc(origin)}</td>` +
           `<td>${where}</td>` +
@@ -661,6 +673,7 @@
     const copy = event.target.closest('[data-copy]');
     if (copy) {
       const query = PAGE.queries[copy.dataset.copy];
+      if (!query.filter) return;
       copyText(query.filter).then((ok) =>
         toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
       );
@@ -731,6 +744,7 @@
     const copy = event.target.closest('[data-copy]');
     if (!copy) return;
     const query = PAGE.queries[copy.dataset.copy];
+    if (!query.filter) return;
     copyText(query.filter).then((ok) =>
       toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
     );

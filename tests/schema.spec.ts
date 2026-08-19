@@ -135,6 +135,28 @@ describe('loadPages', () => {
     expect(message).toBe('');
   });
 
+  it('省略 filter 是允許的——參數順序不穩定的專案用不了篩選字串', () => {
+    const message = loadWith((page) => {
+      delete page.queries.Q1!.filter;
+    });
+    expect(message).toBe('');
+  });
+
+  it('兩支查詢都省略 filter 不算重複', () => {
+    const message = loadWith((page) => {
+      delete page.queries.Q1!.filter;
+      delete page.queries.Q2!.filter;
+    });
+    expect(message).toBe('');
+  });
+
+  it('省略 route 是允許的——非 SPA 或無固定路由', () => {
+    const message = loadWith((page) => {
+      delete page.route;
+    });
+    expect(message).toBe('');
+  });
+
   it('兩支查詢共用同一個 Network 篩選字串時擋下', () => {
     const message = loadWith((page) => {
       page.queries.Q2!.filter = page.queries.Q1!.filter;

@@ -146,6 +146,41 @@ describe('renderHtml', () => {
   });
 });
 
+describe('可選欄位的退場', () => {
+  it('省略 route 時，markdown 標題不留空括號', () => {
+    const page = richPage();
+    delete page.route;
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md.split('\n')[0]).toBe('# 示範頁 欄位對照');
+  });
+
+  it('省略 route 時，HTML 工具列不留孤立的分隔點', () => {
+    const page = richPage();
+    delete page.route;
+    const html = renderHtml(page, computeStats(page), TEST_CONTEXT);
+
+    expect(html).not.toContain('<code></code>');
+  });
+
+  it('省略 route 時，index 的路由欄顯示破折號', () => {
+    const page = richPage();
+    delete page.route;
+    const html = renderIndex([{ page, stats: computeStats(page) }], TEST_CONTEXT);
+
+    expect(html).toContain('<span class="resp">—</span>');
+  });
+
+  it('省略 filter 時，markdown 的篩選欄顯示破折號而非空的反引號', () => {
+    const page = richPage();
+    delete page.queries.Q1!.filter;
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).not.toContain('``');
+    expect(md).toMatch(/\| \*\*Q1\*\* \| `GET \/api\/a` \| — \|/);
+  });
+});
+
 describe('renderIndex', () => {
   it('逐字輸出維持不變', () => {
     expect(renderIndex([{ page: PAGE, stats: STATS }], TEST_CONTEXT)).toMatchSnapshot();

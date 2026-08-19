@@ -32,7 +32,7 @@ export function renderIndex(
       ({ page, stats }) => `
           <tr class="row">
             <td><a class="index__link" href="./${page.page}.html">${escapeHtml(page.title)}</a></td>
-            <td><span class="resp">${escapeHtml(page.route)}</span></td>
+            <td><span class="resp">${page.route === undefined ? '—' : escapeHtml(page.route)}</span></td>
             <td>${stats.sectionCount}</td>
             <td>${stats.fieldCount}</td>
             <td>${stats.queryCount}（${stats.pollingQueryCount} 輪詢）</td>

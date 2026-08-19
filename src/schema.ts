@@ -61,10 +61,11 @@ export const querySchema = z.object({
    * 貼進 DevTools Network filter 用的**單一連續子字串**，用來從一堆相似 request 中
    * 篩出這一支。同頁不得重複（build 時檢查）。
    *
-   * 可行的前提：專案的 `perfectionist/sort-objects` 讓 query 物件 key 字母排序，
-   * 故 URL 參數順序穩定，可安全依賴 `A=1&B=2` 這種連續片段。
+   * **可行的前提是查詢參數順序穩定**——若專案未以 lint 規則固定物件 key 順序
+   * （如 `perfectionist/sort-objects`），`A=1&B=2` 這種連續片段隨時可能失效，
+   * 此時請省略本欄，改以端點路徑自行篩選。
    */
-  filter: z.string().min(1),
+  filter: z.string().min(1).optional(),
   /** 篩選字串無法唯一定位時的補充說明（會一併匹配到誰、怎麼再排除）。 */
   filterNote: z.string().optional(),
   /** 發起來源；預設為卡片資料查詢。 */
@@ -141,8 +142,8 @@ export const fieldMapPageSchema = z.object({
   /** kebab-case，決定輸出檔名與 localStorage 命名空間 */
   page: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'page 必須為 kebab-case'),
   title: z.string().min(1),
-  /** 路由樣板，如 '/sites/:id' */
-  route: z.string().min(1),
+  /** 路由樣板，如 '/sites/:id'；非 SPA 或無固定路由時可省略 */
+  route: z.string().min(1).optional(),
   /** 盤點時讀過的原始碼檔案，供日後回頭核對 */
   sources: z.array(z.string()).min(1),
   /** 盤點日。這是「對過程式碼」的日期，不是「使用者驗收過」的日期 */

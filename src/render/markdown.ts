@@ -56,8 +56,9 @@ function renderQueryTable(page: FieldMapPage): string[] {
       .map(([key, value]) => `\`${key}=${value}\``)
       .join('、');
     const origin = ORIGIN_LABELS[query.origin ?? 'card'];
+    const filter = query.filter === undefined ? '—' : `\`${cell(query.filter)}\``;
     lines.push(
-      `| **${id}** | \`${cell(query.endpoint)}\` | \`${cell(query.filter)}\` | ${cell(params)} | ${
+      `| **${id}** | \`${cell(query.endpoint)}\` | ${filter} | ${cell(params)} | ${
         REFETCH_LABELS[query.refetch]
       } | ${query.httpCount ?? 1} 支${query.conditional ? '（條件性）' : ''} | ${origin} |`,
     );
@@ -190,7 +191,9 @@ export function renderMarkdown(
   ctx: RenderContext,
 ): string {
   const lines: string[] = [
-    `# ${page.title}（\`${page.route}\`）欄位對照`,
+    page.route === undefined
+      ? `# ${page.title} 欄位對照`
+      : `# ${page.title}（\`${page.route}\`）欄位對照`,
     '',
     `> ⚠️ **本檔由 \`${ctx.command}\` 從 \`${ctx.dataDir}/${page.page}.json\` 生成，請勿手改**`,
     `> ——任何手動編輯都會在下次重跑時被覆蓋。要改內容請改 JSON 後重跑。`,

@@ -130,7 +130,7 @@ ${css}
       <div>
         <h1>${escapeHtml(page.title)} 欄位對照</h1>
         <p class="toolbar__meta">
-          <code>${escapeHtml(page.route)}</code> ・
+          ${page.route === undefined ? '' : `<code>${escapeHtml(page.route)}</code> ・`}
           ${stats.sectionCount} 區塊 ・ ${stats.fieldCount} 欄位 ・
           ${stats.queryCount} 查詢（${stats.pollingQueryCount} 輪詢，單次全量 ${stats.pollingHttpCount} 支 HTTP；
           每分鐘 ${stats.perMinute} 支、每小時 ${stats.perHour} 支）・
