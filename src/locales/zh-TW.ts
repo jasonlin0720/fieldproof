@@ -149,7 +149,8 @@ export const zhTW = {
     enabledWhenAll: (condition: string) =>
       `> 全部查詢的 \`enabledWhen\`：${condition}——不成立時查詢停用。`,
     enabledWhenHeading: '> `enabledWhen`（不成立時該支查詢停用）：',
-    enabledWhenItem: (id: string, condition: string) => `> - **${id}**：${condition}`,
+    enabledWhenItem: (ids: string[], condition: string) =>
+      `> - **${ids.join('、')}**：${condition}`,
 
     sectionHeading: (index: number, title: string, key: string) =>
       `## ${index}. ${title} \`${key}\``,

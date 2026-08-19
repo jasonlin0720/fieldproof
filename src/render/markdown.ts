@@ -98,17 +98,24 @@ function renderEnabledWhen(page: FieldMapPage, locale: Locale): string[] {
   const entries = Object.entries(page.queries).filter(([, query]) => query.enabledWhen);
   if (entries.length === 0) return [];
 
-  const values = new Set(entries.map(([, query]) => query.enabledWhen));
-  const everyQuery = entries.length === Object.keys(page.queries).length;
+  // 依條件值分組：多數頁面是「大部分查詢共用同一條件」，逐支列出會刷出一整片重複。
+  const byCondition = new Map<string, string[]>();
+  for (const [id, query] of entries) {
+    const condition = String(query.enabledWhen);
+    byCondition.set(condition, [...(byCondition.get(condition) ?? []), id]);
+  }
 
-  if (everyQuery && values.size === 1) {
-    return ['', locale.md.enabledWhenAll(String([...values][0]))];
+  const everyQuery = entries.length === Object.keys(page.queries).length;
+  if (everyQuery && byCondition.size === 1) {
+    return ['', locale.md.enabledWhenAll([...byCondition.keys()][0] as string)];
   }
 
   return [
     '',
     locale.md.enabledWhenHeading,
-    ...entries.map(([id, query]) => locale.md.enabledWhenItem(id, String(query.enabledWhen))),
+    ...[...byCondition.entries()].map(([condition, ids]) =>
+      locale.md.enabledWhenItem(ids, condition),
+    ),
   ];
 }
 

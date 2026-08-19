@@ -184,6 +184,23 @@ describe('enabledWhen', () => {
     expect(md).toContain('> 全部查詢的 `enabledWhen`：id 為有效數字');
   });
 
+  it('多支共用同一條件時併成一行，不逐支重複', () => {
+    const page = richPage();
+    page.queries.Q2!.enabledWhen = page.queries.Q1!.enabledWhen;
+    page.queries.Q3 = {
+      endpoint: 'GET /api/c',
+      sdk: 'getC',
+      params: {},
+      filter: '/api/c',
+      refetch: 'none',
+    };
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    // Q3 沒有 enabledWhen，故不能收斂成「全部查詢的」；Q1 Q2 共用則應併行。
+    expect(md).not.toContain('全部查詢的');
+    expect(md).toContain('> - **Q1、Q2**：id 為有效數字');
+  });
+
   it('每支都帶但條件不同時，仍逐支列出', () => {
     const page = richPage();
     page.queries.Q2!.enabledWhen = '另一個條件';
