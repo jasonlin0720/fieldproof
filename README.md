@@ -7,4 +7,4 @@
 
 JSON 是 SSOT，兩份輸出都是生成物。
 
-> 🚧 開發中。設計見 [`docs/superpowers/specs/2026-08-19-fieldproof-design.md`](docs/superpowers/specs/2026-08-19-fieldproof-design.md)。
+> 🚧 開發中。
