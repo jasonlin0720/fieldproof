@@ -1,0 +1,12 @@
+{
+  "name": "fieldproof",
+  "version": "0.1.0",
+  "description": "把「畫面上每個欄位的值從哪來、怎麼算、該怎麼顯示」寫成 JSON，產出逐欄位驗收的 HTML 與供 LLM 讀的 Markdown",
+  "type": "module",
+  "license": "MIT",
+  "author": "Jason Lin <zhengdelin0720@gmail.com>",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  }
+}
