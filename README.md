@@ -1,38 +1,45 @@
 # fieldproof
 
-把「畫面上每個欄位的值從哪來、怎麼算、該怎麼顯示」寫成 JSON，產出：
+Write down where every number on a screen comes from — which API, which response
+field, what the frontend does to it, and how it should be rendered — as JSON.
+Get back:
 
-- **HTML** —— 逐欄位驗收介面：分組、篩選、標記「資料 ✓/✗」與「顯示 ✓/✗」、填畫面實際值、匯出問題清單，狀態存在 localStorage
-- **Markdown** —— 給 LLM 讀、給 `git diff` 審閱
+- **HTML** — a field-by-field review tool: group, filter, mark each field's
+  _data_ and _display_ as correct or broken, record what you actually saw on
+  screen, export a punch list. Progress is kept in `localStorage`.
+- **Markdown** — for LLMs to read and for `git diff` to review.
 
-JSON 是唯一事實來源，兩份輸出都是生成物。
+The JSON is the single source of truth. Both outputs are generated.
 
-## 解決什麼問題
+## The problem
 
-驗一個畫面上的數字對不對，通常要這樣翻：
-
-```
-找元件 → 找 props → 找 composable → 找 query → 看參數 → 看 response
-       → 找 mapper → 確認 formatter → 回到畫面
-```
-
-一頁 60 個欄位就是 60 趟。fieldproof 讓你把這段知識寫下來一次：
+Checking whether one number on a screen is correct usually means walking the
+whole chain:
 
 ```
-Q9 · items[].remainingEnergyPercent · 前端取最後一筆 · null → —，數值加 %
+component → props → composable/hook → query → request params → response
+          → mapper → formatter → back to the screen
 ```
 
-然後開著 HTML、對著 DevTools Network，一欄一欄勾過去。
+Sixty fields on a page means sixty round trips, and you lose your place every
+time. fieldproof lets you write that knowledge down once:
 
-## 安裝
+```
+Q9 · items[].remainingEnergyPercent · takes the last item · null → —, suffix %
+```
+
+Then you open the HTML next to your DevTools Network panel and tick fields off
+one at a time.
+
+## Install
 
 ```bash
 pnpm add -D fieldproof
 ```
 
-## 開始
+## Getting started
 
-**1. 建 `fieldproof.config.json`**
+**1. Create `fieldproof.config.json`**
 
 ```json
 {
@@ -42,20 +49,21 @@ pnpm add -D fieldproof
 }
 ```
 
-| 欄位      | 必填 | 說明                                              |
-| --------- | ---- | ------------------------------------------------- |
-| `dataDir` | ✔    | 資料檔所在目錄，相對於設定檔                      |
-| `outDir`  | ✔    | 生成物輸出目錄，相對於設定檔                      |
-| `command` |      | 生成物頁首顯示的重生指令，預設 `fieldproof build` |
-| `locale`  |      | 目前僅 `zh-TW`（預設）                            |
-| `outputs` |      | 預設 `["html", "markdown", "index"]`              |
+| Key       | Required | Description                                                                      |
+| --------- | -------- | -------------------------------------------------------------------------------- |
+| `dataDir` | ✔        | Where the data files live, relative to the config file                           |
+| `outDir`  | ✔        | Where generated files go, relative to the config file                            |
+| `command` |          | The regenerate command shown in generated output. Defaults to `fieldproof build` |
+| `locale`  |          | Currently `zh-TW` only (the default)                                             |
+| `outputs` |          | Defaults to `["html", "markdown", "index"]`                                      |
 
-**2. 寫一頁資料**：`docs/fields/data/dashboard.json`（檔名須等於 `page`）
+**2. Describe one page** in `docs/fields/data/dashboard.json`. The filename must
+match `page`.
 
 ```json
 {
   "page": "dashboard",
-  "title": "總覽",
+  "title": "Dashboard",
   "route": "/admin/dashboard",
   "auditedAt": "2026-08-19",
   "sources": ["src/composables/useDashboardData.ts"],
@@ -63,7 +71,7 @@ pnpm add -D fieldproof
     "Q1": {
       "endpoint": "GET /api/orders/summary",
       "sdk": "getOrderSummary",
-      "params": { "From": "當日 00:00", "To": "now" },
+      "params": { "From": "today 00:00", "To": "now" },
       "refetch": 60000
     }
   },
@@ -71,16 +79,16 @@ pnpm add -D fieldproof
     {
       "key": "sales",
       "kind": "card",
-      "title": "今日業績",
+      "title": "Today",
       "fields": [
         {
           "id": "revenue",
-          "label": "今日營收",
+          "label": "Revenue",
           "query": "Q1",
           "resp": "totals.revenue",
           "source": "backend-agg",
-          "how": "後端已加總，直接取用",
-          "display": "千分位 + 「元」；null → —"
+          "how": "Summed by the backend, taken as-is",
+          "display": "Thousands separator; null → —"
         }
       ]
     }
@@ -88,105 +96,129 @@ pnpm add -D fieldproof
 }
 ```
 
-**3. 產出**
+**3. Build**
 
 ```bash
 npx fieldproof build
 ```
 
-完整範例見 [`examples/`](examples/)。
+See [`examples/`](examples/) for a complete page.
 
 ## CLI
 
 ```bash
-fieldproof build                    # 驗證並生成
-fieldproof build --check            # 只驗證並比對；不同步則非零退出（適合擺進 CI）
-fieldproof build --config <path>    # 指定設定檔（預設自 cwd 向上探尋）
+fieldproof build                    # validate and generate
+fieldproof build --check            # validate and compare only; non-zero exit if out of sync
+fieldproof build --config <path>    # explicit config (default: search upward from cwd)
 ```
 
-## 資料格式
+## Data format
 
-### 頁面
+### Page
 
-| 欄位        | 必填 | 說明                                 |
-| ----------- | ---- | ------------------------------------ |
-| `page`      | ✔    | kebab-case，須等於檔名，決定輸出檔名 |
-| `title`     | ✔    | 顯示標題                             |
-| `sources`   | ✔    | 盤點時讀過的原始碼路徑               |
-| `auditedAt` | ✔    | `YYYY-MM-DD`，「對過程式碼」的日期   |
-| `queries`   | ✔    | query id → 查詢定義                  |
-| `sections`  | ✔    | 區塊                                 |
-| `route`     |      | 路由樣板                             |
-| `notes`     |      | 頁面層級的已知落差                   |
+| Key         | Required | Description                                                                    |
+| ----------- | -------- | ------------------------------------------------------------------------------ |
+| `page`      | ✔        | kebab-case, must equal the filename; determines output filenames               |
+| `title`     | ✔        | Display title                                                                  |
+| `sources`   | ✔        | Source files you read while writing this page                                  |
+| `auditedAt` | ✔        | `YYYY-MM-DD` — the day you last read the code, not the day you verified the UI |
+| `queries`   | ✔        | Query id → query definition                                                    |
+| `sections`  | ✔        | Sections                                                                       |
+| `route`     |          | Route template                                                                 |
+| `notes`     |          | Page-level known gaps                                                          |
 
-### 查詢
+### Query
 
-| 欄位          | 必填 | 說明                                         |
-| ------------- | ---- | -------------------------------------------- |
-| `endpoint`    | ✔    | 如 `GET /api/orders`                         |
-| `sdk`         | ✔    | 對應的 client 函式名                         |
-| `params`      | ✔    | 參數說明（值可為自然語言，如「當日 00:00」） |
-| `refetch`     | ✔    | 刷新間隔（毫秒）或 `"none"`                  |
-| `filter`      |      | DevTools Network 篩選字串，見下方注意事項    |
-| `filterNote`  |      | 篩選字串無法唯一定位時的補充                 |
-| `httpCount`   |      | 併發支數，預設 1                             |
-| `conditional` |      | 是否為條件性請求（不計入進頁基準）           |
-| `origin`      |      | `card`（預設）／`layout`／`component`        |
-| `enabledWhen` |      | 啟用條件                                     |
-| `note`        |      | 備註                                         |
+| Key           | Required | Description                                                      |
+| ------------- | -------- | ---------------------------------------------------------------- |
+| `endpoint`    | ✔        | e.g. `GET /api/orders`                                           |
+| `sdk`         | ✔        | The client function name                                         |
+| `params`      | ✔        | Parameter notes. Values may be prose, e.g. `"today 00:00"`       |
+| `refetch`     | ✔        | Refresh interval in milliseconds, or `"none"`                    |
+| `filter`      |          | DevTools Network filter string — see the caveat below            |
+| `filterNote`  |          | What else the filter matches, when it can't be made unique       |
+| `httpCount`   |          | Requests fired in parallel. Defaults to 1                        |
+| `conditional` |          | Not fired on every page load; excluded from the on-load baseline |
+| `origin`      |          | `card` (default) / `layout` / `component`                        |
+| `enabledWhen` |          | Condition under which the query runs                             |
+| `note`        |          | Free-form note                                                   |
 
-### 欄位
+### Field
 
-| 欄位      | 必填 | 說明                                                    |
-| --------- | ---- | ------------------------------------------------------- |
-| `id`      | ✔    | section 內唯一。**驗收狀態以此為 key，勿任意改名**      |
-| `label`   | ✔    | 畫面上的欄位名                                          |
-| `resp`    | ✔    | response 路徑，如 `items[].amount`；無對應填 `—`        |
-| `source`  | ✔    | 見下表                                                  |
-| `how`     | ✔    | 取值方式一句話                                          |
-| `display` | ✔    | 顯示層處理（格式化、單位、退場）                        |
-| `query`   |      | query id 或 id 陣列；純前端生成的欄位省略               |
-| `checks`  |      | `[{ given, expect }]`，把顯示規則變成可逐條核對的檢查點 |
-| `flags`   |      | `exception` / `backend-pending` / `fragile`             |
-| `note`    |      | 備註                                                    |
+| Key       | Required | Description                                                                          |
+| --------- | -------- | ------------------------------------------------------------------------------------ |
+| `id`      | ✔        | Unique within its section. **Review state is keyed on this — don't rename casually** |
+| `label`   | ✔        | The label as it appears on screen                                                    |
+| `resp`    | ✔        | Response path, e.g. `items[].amount`. Use `—` when there is none                     |
+| `source`  | ✔        | See below                                                                            |
+| `how`     | ✔        | One sentence: how the value is obtained                                              |
+| `display` | ✔        | Formatting, units, empty-state handling                                              |
+| `query`   |          | Query id, or an array of them. Omit for fields the frontend generates                |
+| `checks`  |          | `[{ given, expect }]` — turns a display rule into concrete cases to tick off         |
+| `flags`   |          | `exception` / `backend-pending` / `fragile`                                          |
+| `note`    |          | Free-form note                                                                       |
 
-`source` 可用值：`direct`（API 直取）、`backend-agg`（後端合計）、`fe-pick`（前端取某筆）、`fe-agg`（前端聚合）、`fe-derive`（前端換算）、`fe-const`（前端硬編）。
+`source` values: `direct` (straight from the API), `backend-agg` (pre-aggregated
+by the backend), `fe-pick` (frontend picks one item), `fe-agg` (frontend
+aggregates), `fe-derive` (frontend computes or looks up), `fe-const` (hardcoded).
 
-它驅動 HTML 的顏色標記與篩選，也是驗收時最常切的維度——「這個數字是後端算好的還是前端算的」直接決定出問題時要找誰。
+This drives the colour coding and filters in the HTML, and it is the dimension
+you slice by most while reviewing — whether a number was computed by the backend
+or the frontend decides who you go to when it turns out wrong.
 
-## `filter` 的前提
+## The `filter` caveat
 
-`filter` 是**單一連續子字串**，貼進 DevTools Network 面板就能從一堆相似 request 中篩出這一支。
+`filter` is a **single contiguous substring** you paste into the DevTools Network
+panel to isolate one request among many similar ones.
 
-這件事可行的前提是**查詢參數順序穩定**。若專案沒有以 lint 規則固定物件 key 的順序（例如 `perfectionist/sort-objects`），`A=1&B=2` 這種連續片段隨時可能因為有人調換參數而失效。
+This only works if **query parameter order is stable**. If your project doesn't
+pin object key order with a lint rule (such as `perfectionist/sort-objects`), a
+fragment like `A=1&B=2` breaks the moment someone reorders the parameters.
 
-**沒有這個保證就別填 `filter`**，改用端點路徑自行篩選。同頁的 `filter` 不得重複——重複代表兩支查詢在面板中分不出來，build 會擋下。
+**Without that guarantee, leave `filter` out** and filter by endpoint path
+instead. Filters must be unique within a page — a duplicate means two queries
+are indistinguishable in the panel, and the build rejects it.
 
-## 擺進 CI
+## In CI
 
 ```bash
 fieldproof build --check
 ```
 
-生成物與資料不同步時非零退出。輸出是決定性的（不含時間戳或任何依環境而異的內容），所以這個比對可靠。
+Exits non-zero when the generated files don't match the data. Output is
+deterministic — no timestamps, no environment-dependent content — so this
+comparison is trustworthy.
 
-## 設計取捨
+## Design decisions
 
-**JSON 就是 API。** 本套件只負責「把資料變成可讀、可驗收的兩份輸出」，不判斷「這份資料是否還符合現況程式碼」。
+**The JSON is the API.** This tool turns your data into two readable outputs. It
+does not decide whether that data still matches the current code.
 
-漂移偵測有很多種做法——比對 `sources` 列出的檔案有沒有動過、跑靜態分析、請 LLM 複核——把其中任何一種綁進來，都會逼所有使用者裝那個工具。資料檔就在磁碟上、是 machine-readable 的，還記了 `sources` 與 `auditedAt`，外部工具自己讀就好。
+Drift detection has many possible shapes — diff the files listed in `sources`,
+run static analysis, ask an LLM to re-check — and wiring any one of them in here
+would force every user to adopt that tool. The data files sit on disk, are
+machine-readable, and already record `sources` and `auditedAt`. External tooling
+can read them directly.
 
-**但「定義改了、舊的勾還在」是本套件的事。** 每個欄位的取值側與顯示側各算一份指紋：只改 `display` 時，「資料抓得對不對」的結論仍然有效，不該一起失效；改 `label` 或 `note` 則兩側都不動。HTML 會把受影響的欄位標成「定義已變更」並可單獨篩出。
+**But "the definition changed and the old checkmark is still there" is our
+problem.** Each field gets two fingerprints, one for the data side and one for
+the display side. Changing only `display` leaves the "is the data right?"
+conclusion valid, so it shouldn't be invalidated; changing `label` or `note`
+touches neither. The HTML marks affected fields as stale and lets you filter for
+exactly those.
 
-## 開發
+## Development
 
 ```bash
 pnpm dev       # tsx src/cli.ts
 pnpm test      # vitest
 pnpm typecheck
 pnpm check     # typecheck + test
-pnpm example   # 產生 examples/ 下的示範輸出
+pnpm example   # regenerate the sample output under examples/
 ```
+
+Contributors: see [`AGENTS.md`](AGENTS.md) for architecture and the reasoning
+behind the design decisions.
 
 ## License
 
