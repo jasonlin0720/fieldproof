@@ -1,0 +1,10 @@
+{
+  "//": "建置專用：只編 src/，不含測試。`pnpm build` 用此檔。",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}

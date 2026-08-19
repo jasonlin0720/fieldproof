@@ -6,6 +6,8 @@
  * 不要 stack trace 淹沒重點。
  */
 
+import { pathToFileURL } from 'node:url';
+
 import { build } from './build.js';
 import { loadConfig } from './config.js';
 
@@ -91,10 +93,18 @@ function main(): void {
   for (const out of result.outputs) console.log(`  → ${out.path}`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error('\n✖ fieldproof 失敗\n');
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
+/** 僅在被直接執行時跑；被 import（測試）時只取用其中的純函式。 */
+function isDirectRun(): boolean {
+  const entry = process.argv[1];
+  return entry !== undefined && import.meta.url === pathToFileURL(entry).href;
+}
+
+if (isDirectRun()) {
+  try {
+    main();
+  } catch (error) {
+    console.error('\n✖ fieldproof 失敗\n');
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
