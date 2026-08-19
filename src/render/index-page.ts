@@ -11,6 +11,8 @@ import type { RenderContext } from '../config.js';
 import type { FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
+import { formatRate } from '../format.js';
+
 const ASSETS_DIR = fileURLToPath(new URL('../assets/', import.meta.url));
 
 function escapeHtml(value: string): string {
@@ -36,7 +38,7 @@ export function renderIndex(
             <td>${stats.sectionCount}</td>
             <td>${stats.fieldCount}</td>
             <td>${stats.queryCount}（${stats.pollingQueryCount} 輪詢）</td>
-            <td>每分 ${stats.perMinute} ・ 每時 ${stats.perHour}</td>
+            <td>每小時 ${formatRate(stats.perHour)}</td>
             <td>${escapeHtml(page.auditedAt)}</td>
             <td><a class="index__link" href="./${page.page}.md">md</a></td>
           </tr>`,

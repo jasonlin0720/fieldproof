@@ -22,7 +22,7 @@
 
 - **3 個區塊、11 個欄位**，由 **5 個查詢**組成
 - 其中 **4 個查詢參與輪詢**，單次全量刷新 = **5 支 HTTP**
-- 輪詢負載：每分鐘 **1 支**、每小時 **64 支**
+- 輪詢負載：每小時 **64 支**（每分鐘 × 1 支 = 60；每小時 × 4 支 = 4）
 - **Network 對帳基準：進頁應出現 5 支 request**，另有 1 支條件性請求（卡片隱藏時不會出現）
 
 > 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。
@@ -34,11 +34,11 @@
 
 | #   | 端點 | Network 篩選 | 關鍵參數 | 刷新 | 支數 | 來源 |
 | --- | ---- | ------------ | -------- | ---- | ---- | ---- |
-| **Q1** | `GET /api/orders/summary` | `orders/summary` | `From=當日 00:00`、`To=now` | 每整分 | 1 支 | 卡片資料 |
-| **Q2** | `GET /api/orders` | `Page=1&PageSize=9999` | `Page=1`、`PageSize=9999`、`Status=paid` | 每整點 | 2 支 | 卡片資料 |
-| **Q3** | `GET /api/inventory` | `/api/inventory` | `Page=1`、`PageSize=9999` | 每整點 | 1 支 | 卡片資料 |
+| **Q1** | `GET /api/orders/summary` | `orders/summary` | `From=當日 00:00`、`To=now` | 每分鐘 | 1 支 | 卡片資料 |
+| **Q2** | `GET /api/orders` | `Page=1&PageSize=9999` | `Page=1`、`PageSize=9999`、`Status=paid` | 每小時 | 2 支 | 卡片資料 |
+| **Q3** | `GET /api/inventory` | `/api/inventory` | `Page=1`、`PageSize=9999` | 每小時 | 1 支 | 卡片資料 |
 | **Q4** | `GET /api/stores` | `/api/stores` |  | 不輪詢 | 1 支 | 版面層 |
-| **Q5** | `GET /api/orders/refunds` | `orders/refunds` | `From=當月 1 日`、`To=now` | 每整點 | 1 支（條件性） | 卡片資料 |
+| **Q5** | `GET /api/orders/refunds` | `orders/refunds` | `From=當月 1 日`、`To=now` | 每小時 | 1 支（條件性） | 卡片資料 |
 
 **查詢註記**
 
@@ -46,7 +46,8 @@
 - **Q4**： 版面層的分店切換器自打，不屬於任何卡片。
 - **Q5**： 退款卡片預設收合，展開後才發。
 
-> 全部查詢的 `enabledWhen`：已登入且 storeId 為有效數字——不成立時查詢停用，對應區塊退空狀態且不卡首屏骨架。
+> `enabledWhen`（不成立時該支查詢停用）：
+> - **Q1**：已登入且 storeId 為有效數字
 
 ---
 

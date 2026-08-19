@@ -9,13 +9,8 @@ import type { RenderContext } from '../config.js';
 import type { Field, FieldMapPage, Section } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
+import { formatInterval, formatRate } from '../format.js';
 import { FLAG_META, ORIGIN_LABELS, SOURCE_LABELS } from '../schema.js';
-
-const REFETCH_LABELS = {
-  hourly: '每整點',
-  minutely: '每整分',
-  none: '不輪詢',
-} as const;
 
 const SECTION_KIND_LABELS = {
   card: '卡片',
@@ -24,6 +19,17 @@ const SECTION_KIND_LABELS = {
   form: '表單',
   table: '表格',
 } as const;
+
+/** 各刷新間隔的負載明細。只有一種間隔時省略——括號內容會與前面的總數重複。 */
+function intervalBreakdown(stats: FieldMapStats): string {
+  if (stats.byInterval.length < 2) return '';
+
+  const parts = stats.byInterval.map(
+    (load) =>
+      `${formatInterval(load.intervalMs)} × ${load.httpCount} 支 = ${formatRate(load.perHour)}`,
+  );
+  return `（${parts.join('；')}）`;
+}
 
 /** 表格儲存格：`|` 會拆欄、換行會斷表。 */
 function cell(text: string): string {
@@ -58,9 +64,9 @@ function renderQueryTable(page: FieldMapPage): string[] {
     const origin = ORIGIN_LABELS[query.origin ?? 'card'];
     const filter = query.filter === undefined ? '—' : `\`${cell(query.filter)}\``;
     lines.push(
-      `| **${id}** | \`${cell(query.endpoint)}\` | ${filter} | ${cell(params)} | ${
-        REFETCH_LABELS[query.refetch]
-      } | ${query.httpCount ?? 1} 支${query.conditional ? '（條件性）' : ''} | ${origin} |`,
+      `| **${id}** | \`${cell(query.endpoint)}\` | ${filter} | ${cell(params)} | ${formatInterval(
+        query.refetch,
+      )} | ${query.httpCount ?? 1} 支${query.conditional ? '（條件性）' : ''} | ${origin} |`,
     );
   }
 
@@ -235,7 +241,7 @@ export function renderMarkdown(
     '',
     `- **${stats.sectionCount} 個區塊、${stats.fieldCount} 個欄位**，由 **${stats.queryCount} 個查詢**組成`,
     `- 其中 **${stats.pollingQueryCount} 個查詢參與輪詢**，單次全量刷新 = **${stats.pollingHttpCount} 支 HTTP**`,
-    `- 輪詢負載：每分鐘 **${stats.perMinute} 支**、每小時 **${stats.perHour} 支**`,
+    `- 輪詢負載：每小時 **${formatRate(stats.perHour)} 支**${intervalBreakdown(stats)}`,
     `- **Network 對帳基準：進頁應出現 ${stats.baseHttpCount} 支 request**` +
       (stats.conditionalHttpCount
         ? `，另有 ${stats.conditionalHttpCount} 支條件性請求（卡片隱藏時不會出現）`

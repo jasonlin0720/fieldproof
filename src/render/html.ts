@@ -14,6 +14,7 @@ import type { RenderContext } from '../config.js';
 import type { Field, FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
+import { formatInterval, formatRate } from '../format.js';
 import { FLAG_META, ORIGIN_LABELS, SOURCE_LABELS } from '../schema.js';
 
 const ASSETS_DIR = fileURLToPath(new URL('../assets/', import.meta.url));
@@ -87,7 +88,14 @@ export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: Render
         })),
       })),
       flagMeta: FLAG_META,
+      // 間隔標籤預先算好注入，瀏覽器端不重寫一套格式化規則。
+      intervalLabels: Object.fromEntries(
+        stats.byInterval.map((load) => [load.intervalMs, formatInterval(load.intervalMs)]),
+      ),
       originLabels: ORIGIN_LABELS,
+      refetchLabels: Object.fromEntries(
+        Object.entries(page.queries).map(([id, query]) => [id, formatInterval(query.refetch)]),
+      ),
       sectionKindLabels: SECTION_KIND_LABELS,
       sourceLabels: SOURCE_LABELS,
       stats,
@@ -133,7 +141,7 @@ ${css}
           ${page.route === undefined ? '' : `<code>${escapeHtml(page.route)}</code> ・`}
           ${stats.sectionCount} 區塊 ・ ${stats.fieldCount} 欄位 ・
           ${stats.queryCount} 查詢（${stats.pollingQueryCount} 輪詢，單次全量 ${stats.pollingHttpCount} 支 HTTP；
-          每分鐘 ${stats.perMinute} 支、每小時 ${stats.perHour} 支）・
+          每小時 ${formatRate(stats.perHour)} 支）・
           盤點 ${escapeHtml(page.auditedAt)}
         </p>
       </div>

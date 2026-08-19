@@ -12,27 +12,37 @@
     "Q1": {
       "endpoint": "GET /api/orders/summary",
       "sdk": "getOrderSummary",
-      "params": { "From": "當日 00:00", "To": "now" },
+      "params": {
+        "From": "當日 00:00",
+        "To": "now"
+      },
       "filter": "orders/summary",
-      "refetch": "minutely",
+      "refetch": 60000,
       "enabledWhen": "已登入且 storeId 為有效數字"
     },
     "Q2": {
       "endpoint": "GET /api/orders",
       "sdk": "getOrders",
-      "params": { "Page": "1", "PageSize": "9999", "Status": "paid" },
+      "params": {
+        "Page": "1",
+        "PageSize": "9999",
+        "Status": "paid"
+      },
       "filter": "Page=1&PageSize=9999",
       "filterNote": "會一併匹配到 Q3；以 `Status=paid` 再篩一次即可分辨。",
-      "refetch": "hourly",
+      "refetch": 3600000,
       "httpCount": 2,
       "note": "分頁端點，一次取全量以便前端自行彙總。"
     },
     "Q3": {
       "endpoint": "GET /api/inventory",
       "sdk": "getInventory",
-      "params": { "Page": "1", "PageSize": "9999" },
+      "params": {
+        "Page": "1",
+        "PageSize": "9999"
+      },
       "filter": "/api/inventory",
-      "refetch": "hourly"
+      "refetch": 3600000
     },
     "Q4": {
       "endpoint": "GET /api/stores",
@@ -46,9 +56,12 @@
     "Q5": {
       "endpoint": "GET /api/orders/refunds",
       "sdk": "getRefunds",
-      "params": { "From": "當月 1 日", "To": "now" },
+      "params": {
+        "From": "當月 1 日",
+        "To": "now"
+      },
       "filter": "orders/refunds",
-      "refetch": "hourly",
+      "refetch": 3600000,
       "conditional": true,
       "note": "退款卡片預設收合，展開後才發。"
     }
@@ -58,7 +71,10 @@
       "key": "sales-summary",
       "kind": "card",
       "title": "今日業績",
-      "meta": { "位置": "左上", "深連結": "/admin/orders" },
+      "meta": {
+        "位置": "左上",
+        "深連結": "/admin/orders"
+      },
       "emptyRule": "整卡無資料時顯示「今日尚無訂單」，不畫骨架。",
       "fields": [
         {
@@ -70,9 +86,18 @@
           "how": "後端已加總，直接取用",
           "display": "千分位 + 「元」；null → —",
           "checks": [
-            { "given": "response = 1234567", "expect": "1,234,567 元" },
-            { "given": "response = null", "expect": "—" },
-            { "given": "response = 0", "expect": "0 元" }
+            {
+              "given": "response = 1234567",
+              "expect": "1,234,567 元"
+            },
+            {
+              "given": "response = null",
+              "expect": "—"
+            },
+            {
+              "given": "response = 0",
+              "expect": "0 元"
+            }
           ]
         },
         {
@@ -94,7 +119,12 @@
           "display": "四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —",
           "flags": ["fragile"],
           "note": "分母為 0 的情形後端不保證不會出現，前端須自行擋。",
-          "checks": [{ "given": "orderCount = 0", "expect": "—（不可顯示 NaN 或 Infinity）" }]
+          "checks": [
+            {
+              "given": "orderCount = 0",
+              "expect": "—（不可顯示 NaN 或 Infinity）"
+            }
+          ]
         },
         {
           "id": "refund-total",
@@ -175,8 +205,14 @@
           "how": "API 欄位直取",
           "display": "整數；< 10 時數字轉紅",
           "checks": [
-            { "given": "stock = 9", "expect": "紅色 9" },
-            { "given": "stock = 10", "expect": "一般色 10" }
+            {
+              "given": "stock = 9",
+              "expect": "紅色 9"
+            },
+            {
+              "given": "stock = 10",
+              "expect": "一般色 10"
+            }
           ]
         },
         {

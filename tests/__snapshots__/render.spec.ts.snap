@@ -956,7 +956,7 @@ tr.reconcile--conditional td {
           <code>/demo</code> ・
           2 區塊 ・ 3 欄位 ・
           2 查詢（1 輪詢，單次全量 1 支 HTTP；
-          每分鐘 1 支、每小時 60 支）・
+          每小時 60 支）・
           盤點 2026-08-19
         </p>
       </div>
@@ -1047,19 +1047,21 @@ tr.reconcile--conditional td {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":"minutely","note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":"—","source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"f0cb3002","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"perMinute":1,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2}}</script>
+    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":60000,"note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":"—","source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"f0cb3002","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"intervalLabels":{"60000":"每分鐘"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"不輪詢"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60}],"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2}}</script>
     <script>
 /* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
 (() => {
   'use strict';
 
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+
+  /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
+  const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
   const STORE_KEY = \`fieldproof:v1:\${PAGE.page}\`;
   const PREF_KEY = \`fieldproof:v1:\${PAGE.page}:prefs\`;
 
   const SOURCE_LABELS = PAGE.sourceLabels;
   const FLAG_META = PAGE.flagMeta;
-  const REFETCH_LABELS = { hourly: '每整點', minutely: '每整分', none: '不輪詢' };
 
   // ---------- state ----------
 
@@ -1336,7 +1338,7 @@ tr.reconcile--conditional td {
         .join('');
       return (
         \`<div class="detail__box">\` +
-        \`<div class="detail__title">\${esc(id)} · \${REFETCH_LABELS[query.refetch]}\` +
+        \`<div class="detail__title">\${esc(id)} · \${esc(PAGE.refetchLabels[id])}\` +
         (query.httpCount && query.httpCount > 1 ? \` · 併發 \${query.httpCount} 支\` : '') +
         (query.filter
           ? \`<button class="btn" type="button" data-copy="\${esc(id)}">複製 Network 篩選</button>\`
@@ -1444,7 +1446,7 @@ tr.reconcile--conditional td {
     return (
       \`<tr class="group"><td colspan="9">\` +
       \`<div class="group__head"><span class="group__title">\${esc(group.key)}</span>\` +
-      \`<span class="group__key">\${esc(query.endpoint)} ・ \${REFETCH_LABELS[query.refetch]}\${
+      \`<span class="group__key">\${esc(query.endpoint)} ・ \${esc(PAGE.refetchLabels[group.key])}\${
         query.httpCount && query.httpCount > 1 ? \` ・ 併發 \${query.httpCount} 支\` : ''
       }</span>\` +
       \`<span class="group__meta" title="\${esc(params)}">\` +
@@ -1688,8 +1690,16 @@ tr.reconcile--conditional td {
     document.getElementById('reconcile-body').innerHTML =
       \`<p class="reconcile__lead">進頁後 Network 面板應出現 <b>\${PAGE.stats.baseHttpCount} 支</b> request\` +
       \`（不含條件性請求與瀏覽器自身的資源請求）。\` +
-      \`其中輪詢查詢 \${PAGE.stats.pollingHttpCount} 支，之後每分鐘再 \${PAGE.stats.perMinute} 支、\` +
-      \`每整點再 \${PAGE.stats.perHour - PAGE.stats.perMinute * 60} 支。</p>\` +
+      \`其中輪詢查詢 \${PAGE.stats.pollingHttpCount} 支，之後每小時再 \${fmtRate(PAGE.stats.perHour)} 支\` +
+      (PAGE.stats.byInterval.length > 1
+        ? \`（\${PAGE.stats.byInterval
+            .map(
+              (b) =>
+                \`\${esc(PAGE.intervalLabels[b.intervalMs])} × \${b.httpCount} 支 = \${fmtRate(b.perHour)}\`,
+            )
+            .join('；')}）\`
+        : '') +
+      \`。</p>\` +
       \`<table class="reconcile"><thead><tr>\` +
       \`<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>\` +
       \`</tr></thead><tbody>\${rowsHtml}</tbody></table>\` +
@@ -2872,7 +2882,7 @@ tr.reconcile--conditional td {
             <td>2</td>
             <td>3</td>
             <td>2（1 輪詢）</td>
-            <td>每分 1 ・ 每時 60</td>
+            <td>每小時 60</td>
             <td>2026-08-19</td>
             <td><a class="index__link" href="./demo.md">md</a></td>
           </tr>
@@ -2907,7 +2917,7 @@ exports[`renderMarkdown > 逐字輸出維持不變 1`] = `
 
 - **2 個區塊、3 個欄位**，由 **2 個查詢**組成
 - 其中 **1 個查詢參與輪詢**，單次全量刷新 = **1 支 HTTP**
-- 輪詢負載：每分鐘 **1 支**、每小時 **60 支**
+- 輪詢負載：每小時 **60 支**
 - **Network 對帳基準：進頁應出現 1 支 request**，另有 3 支條件性請求（卡片隱藏時不會出現）
 
 > 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。
@@ -2919,7 +2929,7 @@ exports[`renderMarkdown > 逐字輸出維持不變 1`] = `
 
 | #   | 端點 | Network 篩選 | 關鍵參數 | 刷新 | 支數 | 來源 |
 | --- | ---- | ------------ | -------- | ---- | ---- | ---- |
-| **Q1** | \`GET /api/a\` | \`/api/a\` | \`Page=1\` | 每整分 | 1 支 | 卡片資料 |
+| **Q1** | \`GET /api/a\` | \`/api/a\` | \`Page=1\` | 每分鐘 | 1 支 | 卡片資料 |
 | **Q2** | \`GET /api/b\` | \`/api/b\` |  | 不輪詢 | 3 支（條件性） | 版面層 |
 
 **查詢註記**

@@ -42,7 +42,7 @@ describe('computeStats', () => {
   it('httpCount 未填時以 1 計', () => {
     const stats = computeStats(
       pageWithQueries({
-        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 'hourly' },
+        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 3_600_000 },
       }),
     );
     expect(stats.httpCount).toBe(1);
@@ -57,7 +57,7 @@ describe('computeStats', () => {
           params: {},
           filter: '/a',
           httpCount: 4,
-          refetch: 'hourly',
+          refetch: 3_600_000,
         },
       }),
     );
@@ -69,7 +69,7 @@ describe('computeStats', () => {
     const stats = computeStats(
       pageWithQueries({
         Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 'none' },
-        Q2: { endpoint: 'GET /b', sdk: 'b', params: {}, filter: '/b', refetch: 'hourly' },
+        Q2: { endpoint: 'GET /b', sdk: 'b', params: {}, filter: '/b', refetch: 3_600_000 },
       }),
     );
     expect(stats.queryCount).toBe(2);
@@ -81,7 +81,7 @@ describe('computeStats', () => {
   it('conditional 的查詢不計入進頁基準，另計一欄', () => {
     const stats = computeStats(
       pageWithQueries({
-        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 'hourly' },
+        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 3_600_000 },
         Q2: {
           conditional: true,
           endpoint: 'GET /b',
@@ -89,7 +89,7 @@ describe('computeStats', () => {
           params: {},
           filter: '/b',
           httpCount: 2,
-          refetch: 'hourly',
+          refetch: 3_600_000,
         },
       }),
     );
@@ -98,9 +98,7 @@ describe('computeStats', () => {
     expect(stats.httpCount).toBe(3);
   });
 
-  // 特徵測試：鎖住現行的每小時公式。`perMinute` 目前的語意是「每分鐘刷新的那些查詢的
-  // 支數」，不是真實速率——它沒有把每小時查詢攤進來。改為毫秒間隔時這裡會變。
-  it('perHour = 每分查詢支數 × 60 ＋ 每時查詢支數', () => {
+  it('perHour 由各間隔的實際速率加總，而非只算最短間隔那一組', () => {
     const stats = computeStats(
       pageWithQueries({
         Q1: {
@@ -109,7 +107,7 @@ describe('computeStats', () => {
           params: {},
           filter: '/a',
           httpCount: 5,
-          refetch: 'minutely',
+          refetch: 60_000,
         },
         Q2: {
           endpoint: 'GET /b',
@@ -117,11 +115,54 @@ describe('computeStats', () => {
           params: {},
           filter: '/b',
           httpCount: 14,
-          refetch: 'hourly',
+          refetch: 3_600_000,
         },
       }),
     );
-    expect(stats.perMinute).toBe(5);
     expect(stats.perHour).toBe(5 * 60 + 14);
+  });
+
+  it('byInterval 依間隔由短到長列出各組負載', () => {
+    const stats = computeStats(
+      pageWithQueries({
+        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 3_600_000 },
+        Q2: {
+          endpoint: 'GET /b',
+          sdk: 'b',
+          params: {},
+          filter: '/b',
+          httpCount: 2,
+          refetch: 60_000,
+        },
+        Q3: { endpoint: 'GET /c', sdk: 'c', params: {}, filter: '/c', refetch: 60_000 },
+        Q4: { endpoint: 'GET /d', sdk: 'd', params: {}, filter: '/d', refetch: 'none' },
+      }),
+    );
+
+    expect(stats.byInterval).toEqual([
+      { httpCount: 3, intervalMs: 60_000, perHour: 180, queryCount: 2 },
+      { httpCount: 1, intervalMs: 3_600_000, perHour: 1, queryCount: 1 },
+    ]);
+    expect(stats.perHour).toBe(181);
+  });
+
+  it('不輪詢的查詢不出現在 byInterval', () => {
+    const stats = computeStats(
+      pageWithQueries({
+        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 'none' },
+      }),
+    );
+    expect(stats.byInterval).toEqual([]);
+    expect(stats.perHour).toBe(0);
+  });
+
+  it('間隔不整除一小時時，perHour 為小數而非被抹掉', () => {
+    const stats = computeStats(
+      pageWithQueries({
+        // 7 分鐘：3_600_000 / 420_000 ≈ 8.571 次
+        Q1: { endpoint: 'GET /a', sdk: 'a', params: {}, filter: '/a', refetch: 420_000 },
+      }),
+    );
+    expect(stats.perHour).toBeCloseTo(8.571, 3);
   });
 });

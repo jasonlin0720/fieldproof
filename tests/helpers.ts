@@ -26,7 +26,7 @@ export function makePage(): FieldMapPage {
         sdk: 'getA',
         params: { Page: '1' },
         filter: '/api/a',
-        refetch: 'minutely',
+        refetch: 60_000,
       },
       Q2: {
         endpoint: 'GET /api/b',

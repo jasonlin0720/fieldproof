@@ -3,12 +3,14 @@
   'use strict';
 
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+
+  /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
+  const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
   const STORE_KEY = `fieldproof:v1:${PAGE.page}`;
   const PREF_KEY = `fieldproof:v1:${PAGE.page}:prefs`;
 
   const SOURCE_LABELS = PAGE.sourceLabels;
   const FLAG_META = PAGE.flagMeta;
-  const REFETCH_LABELS = { hourly: '每整點', minutely: '每整分', none: '不輪詢' };
 
   // ---------- state ----------
 
@@ -285,7 +287,7 @@
         .join('');
       return (
         `<div class="detail__box">` +
-        `<div class="detail__title">${esc(id)} · ${REFETCH_LABELS[query.refetch]}` +
+        `<div class="detail__title">${esc(id)} · ${esc(PAGE.refetchLabels[id])}` +
         (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
         (query.filter
           ? `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button>`
@@ -393,7 +395,7 @@
     return (
       `<tr class="group"><td colspan="9">` +
       `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
-      `<span class="group__key">${esc(query.endpoint)} ・ ${REFETCH_LABELS[query.refetch]}${
+      `<span class="group__key">${esc(query.endpoint)} ・ ${esc(PAGE.refetchLabels[group.key])}${
         query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
       }</span>` +
       `<span class="group__meta" title="${esc(params)}">` +
@@ -637,8 +639,16 @@
     document.getElementById('reconcile-body').innerHTML =
       `<p class="reconcile__lead">進頁後 Network 面板應出現 <b>${PAGE.stats.baseHttpCount} 支</b> request` +
       `（不含條件性請求與瀏覽器自身的資源請求）。` +
-      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每分鐘再 ${PAGE.stats.perMinute} 支、` +
-      `每整點再 ${PAGE.stats.perHour - PAGE.stats.perMinute * 60} 支。</p>` +
+      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每小時再 ${fmtRate(PAGE.stats.perHour)} 支` +
+      (PAGE.stats.byInterval.length > 1
+        ? `（${PAGE.stats.byInterval
+            .map(
+              (b) =>
+                `${esc(PAGE.intervalLabels[b.intervalMs])} × ${b.httpCount} 支 = ${fmtRate(b.perHour)}`,
+            )
+            .join('；')}）`
+        : '') +
+      `。</p>` +
       `<table class="reconcile"><thead><tr>` +
       `<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>` +
       `</tr></thead><tbody>${rowsHtml}</tbody></table>` +

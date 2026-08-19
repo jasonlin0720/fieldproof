@@ -953,7 +953,7 @@ tr.reconcile--conditional td {
           <code>/admin/dashboard</code> ・
           3 區塊 ・ 11 欄位 ・
           5 查詢（4 輪詢，單次全量 5 支 HTTP；
-          每分鐘 1 支、每小時 64 支）・
+          每小時 64 支）・
           盤點 2026-08-19
         </p>
       </div>
@@ -1051,19 +1051,21 @@ tr.reconcile--conditional td {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="application/json" id="fieldproof-data">{"page":"dashboard","title":"書店後台總覽","route":"/admin/dashboard","sources":["src/composables/useDashboardData.ts","src/components/dashboard/SalesCard.vue","src/components/dashboard/StockTable.vue"],"auditedAt":"2026-08-19","queries":{"Q1":{"endpoint":"GET /api/orders/summary","sdk":"getOrderSummary","params":{"From":"當日 00:00","To":"now"},"filter":"orders/summary","refetch":"minutely","enabledWhen":"已登入且 storeId 為有效數字"},"Q2":{"endpoint":"GET /api/orders","sdk":"getOrders","params":{"Page":"1","PageSize":"9999","Status":"paid"},"filter":"Page=1&PageSize=9999","filterNote":"會一併匹配到 Q3；以 `Status=paid` 再篩一次即可分辨。","refetch":"hourly","httpCount":2,"note":"分頁端點，一次取全量以便前端自行彙總。"},"Q3":{"endpoint":"GET /api/inventory","sdk":"getInventory","params":{"Page":"1","PageSize":"9999"},"filter":"/api/inventory","refetch":"hourly"},"Q4":{"endpoint":"GET /api/stores","sdk":"getStores","params":{},"filter":"/api/stores","origin":"layout","refetch":"none","note":"版面層的分店切換器自打，不屬於任何卡片。"},"Q5":{"endpoint":"GET /api/orders/refunds","sdk":"getRefunds","params":{"From":"當月 1 日","To":"now"},"filter":"orders/refunds","conditional":true,"refetch":"hourly","note":"退款卡片預設收合，展開後才發。"}},"sections":[{"key":"sales-summary","kind":"card","title":"今日業績","meta":{"位置":"左上","深連結":"/admin/orders"},"emptyRule":"整卡無資料時顯示「今日尚無訂單」，不畫骨架。","fields":[{"id":"revenue","label":"今日營收","query":"Q1","resp":"totals.revenue","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","checks":[{"given":"response = 1234567","expect":"1,234,567 元"},{"given":"response = null","expect":"—"},{"given":"response = 0","expect":"0 元"}],"dataHash":"dde3fe91","displayHash":"4b5f12dc"},{"id":"order-count","label":"訂單數","query":"Q1","resp":"totals.orderCount","source":"direct","how":"API 欄位直取","display":"整數；null → —","dataHash":"67352280","displayHash":"ee2dc950"},{"id":"avg-order-value","label":"客單價","query":"Q1","resp":"—","source":"fe-derive","how":"前端換算：revenue ÷ orderCount","display":"四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —","checks":[{"given":"orderCount = 0","expect":"—（不可顯示 NaN 或 Infinity）"}],"flags":["fragile"],"note":"分母為 0 的情形後端不保證不會出現，前端須自行擋。","dataHash":"58cd9f64","displayHash":"d90e8dad"},{"id":"refund-total","label":"本月退款","query":"Q5","resp":"totals.refundAmount","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","flags":["backend-pending"],"note":"後端仍在確認退款是否含手續費，數字可能再變。","dataHash":"81338609","displayHash":"a15a6638"}]},{"key":"sales-trend","kind":"chart","title":"近 7 日營收趨勢","fields":[{"id":"trend-series","label":"折線資料","query":"Q2","resp":"items[].paidAt / items[].amount","source":"fe-agg","how":"前端依 paidAt 分日 bucket 後加總 amount","display":"無資料的日子畫斷點，不連線","dataHash":"4efb4ff8","displayHash":"834e759f"},{"id":"trend-labels","label":"X 軸標籤","resp":"—","source":"fe-const","how":"前端生成近 7 日日期，不來自 API","display":"MM/DD","dataHash":"cc8c61fe","displayHash":"5daea3ee"},{"id":"trend-peak","label":"峰值標記","query":"Q2","resp":"items[].amount","source":"fe-pick","how":"前端取分日加總後的最大值那一日","display":"該點加圓點標記與數值標籤；全為 0 時不標","dataHash":"d4110f97","displayHash":"84ff7216"}]},{"key":"stock-table","kind":"table","title":"低庫存品項","emptyRule":"無低庫存品項時顯示「庫存水位正常」。","fields":[{"id":"isbn","label":"ISBN","query":"Q3","resp":"items[].isbn","source":"direct","how":"API 欄位直取","display":"等寬字體；空字串 → —","dataHash":"6c8e871e","displayHash":"f0dc5e32"},{"id":"title","label":"書名","query":"Q3","resp":"items[].title","source":"direct","how":"API 欄位直取","display":"超長截斷加 tooltip","dataHash":"61dc3121","displayHash":"fc02e9f7"},{"id":"stock","label":"剩餘庫存","query":"Q3","resp":"items[].stock","source":"direct","how":"API 欄位直取","display":"整數；\u003c 10 時數字轉紅","checks":[{"given":"stock = 9","expect":"紅色 9"},{"given":"stock = 10","expect":"一般色 10"}],"dataHash":"d717aa60","displayHash":"4039f08f"},{"id":"store-name","label":"所屬分店","query":["Q3","Q4"],"resp":"items[].storeId → stores[].name","source":"fe-derive","how":"以 storeId 對 Q4 的分店清單查表換名稱","display":"查無對應時顯示原始 storeId","flags":["exception"],"note":"全站其他表格由後端直接回名稱，只有此處是前端查表——後端此端點未帶 storeName。","dataHash":"24a1ccfb","displayHash":"fecb963f"}]}],"notes":[{"title":"Q2 一次取全量的理由","body":"趨勢圖需要整段序列，分頁取會讓前端得自行串頁；與後端確認過資料量上限後改為一次取全量。"},{"title":"退款卡片的條件性請求","body":"Q5 只在卡片展開時才發，故 Network 對帳時進頁不會看到它——這是預期行為，不是漏打。"}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":5,"bySource":{"backend-agg":2,"direct":4,"fe-agg":1,"fe-const":1,"fe-derive":2,"fe-pick":1},"conditionalHttpCount":1,"fieldCount":11,"httpCount":6,"perHour":64,"perMinute":1,"pollingHttpCount":5,"pollingQueryCount":4,"queryCount":5,"sectionCount":3}}</script>
+    <script type="application/json" id="fieldproof-data">{"page":"dashboard","title":"書店後台總覽","route":"/admin/dashboard","sources":["src/composables/useDashboardData.ts","src/components/dashboard/SalesCard.vue","src/components/dashboard/StockTable.vue"],"auditedAt":"2026-08-19","queries":{"Q1":{"endpoint":"GET /api/orders/summary","sdk":"getOrderSummary","params":{"From":"當日 00:00","To":"now"},"filter":"orders/summary","refetch":60000,"enabledWhen":"已登入且 storeId 為有效數字"},"Q2":{"endpoint":"GET /api/orders","sdk":"getOrders","params":{"Page":"1","PageSize":"9999","Status":"paid"},"filter":"Page=1&PageSize=9999","filterNote":"會一併匹配到 Q3；以 `Status=paid` 再篩一次即可分辨。","refetch":3600000,"httpCount":2,"note":"分頁端點，一次取全量以便前端自行彙總。"},"Q3":{"endpoint":"GET /api/inventory","sdk":"getInventory","params":{"Page":"1","PageSize":"9999"},"filter":"/api/inventory","refetch":3600000},"Q4":{"endpoint":"GET /api/stores","sdk":"getStores","params":{},"filter":"/api/stores","origin":"layout","refetch":"none","note":"版面層的分店切換器自打，不屬於任何卡片。"},"Q5":{"endpoint":"GET /api/orders/refunds","sdk":"getRefunds","params":{"From":"當月 1 日","To":"now"},"filter":"orders/refunds","conditional":true,"refetch":3600000,"note":"退款卡片預設收合，展開後才發。"}},"sections":[{"key":"sales-summary","kind":"card","title":"今日業績","meta":{"位置":"左上","深連結":"/admin/orders"},"emptyRule":"整卡無資料時顯示「今日尚無訂單」，不畫骨架。","fields":[{"id":"revenue","label":"今日營收","query":"Q1","resp":"totals.revenue","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","checks":[{"given":"response = 1234567","expect":"1,234,567 元"},{"given":"response = null","expect":"—"},{"given":"response = 0","expect":"0 元"}],"dataHash":"dde3fe91","displayHash":"4b5f12dc"},{"id":"order-count","label":"訂單數","query":"Q1","resp":"totals.orderCount","source":"direct","how":"API 欄位直取","display":"整數；null → —","dataHash":"67352280","displayHash":"ee2dc950"},{"id":"avg-order-value","label":"客單價","query":"Q1","resp":"—","source":"fe-derive","how":"前端換算：revenue ÷ orderCount","display":"四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —","checks":[{"given":"orderCount = 0","expect":"—（不可顯示 NaN 或 Infinity）"}],"flags":["fragile"],"note":"分母為 0 的情形後端不保證不會出現，前端須自行擋。","dataHash":"58cd9f64","displayHash":"d90e8dad"},{"id":"refund-total","label":"本月退款","query":"Q5","resp":"totals.refundAmount","source":"backend-agg","how":"後端已加總，直接取用","display":"千分位 + 「元」；null → —","flags":["backend-pending"],"note":"後端仍在確認退款是否含手續費，數字可能再變。","dataHash":"81338609","displayHash":"a15a6638"}]},{"key":"sales-trend","kind":"chart","title":"近 7 日營收趨勢","fields":[{"id":"trend-series","label":"折線資料","query":"Q2","resp":"items[].paidAt / items[].amount","source":"fe-agg","how":"前端依 paidAt 分日 bucket 後加總 amount","display":"無資料的日子畫斷點，不連線","dataHash":"4efb4ff8","displayHash":"834e759f"},{"id":"trend-labels","label":"X 軸標籤","resp":"—","source":"fe-const","how":"前端生成近 7 日日期，不來自 API","display":"MM/DD","dataHash":"cc8c61fe","displayHash":"5daea3ee"},{"id":"trend-peak","label":"峰值標記","query":"Q2","resp":"items[].amount","source":"fe-pick","how":"前端取分日加總後的最大值那一日","display":"該點加圓點標記與數值標籤；全為 0 時不標","dataHash":"d4110f97","displayHash":"84ff7216"}]},{"key":"stock-table","kind":"table","title":"低庫存品項","emptyRule":"無低庫存品項時顯示「庫存水位正常」。","fields":[{"id":"isbn","label":"ISBN","query":"Q3","resp":"items[].isbn","source":"direct","how":"API 欄位直取","display":"等寬字體；空字串 → —","dataHash":"6c8e871e","displayHash":"f0dc5e32"},{"id":"title","label":"書名","query":"Q3","resp":"items[].title","source":"direct","how":"API 欄位直取","display":"超長截斷加 tooltip","dataHash":"61dc3121","displayHash":"fc02e9f7"},{"id":"stock","label":"剩餘庫存","query":"Q3","resp":"items[].stock","source":"direct","how":"API 欄位直取","display":"整數；\u003c 10 時數字轉紅","checks":[{"given":"stock = 9","expect":"紅色 9"},{"given":"stock = 10","expect":"一般色 10"}],"dataHash":"d717aa60","displayHash":"4039f08f"},{"id":"store-name","label":"所屬分店","query":["Q3","Q4"],"resp":"items[].storeId → stores[].name","source":"fe-derive","how":"以 storeId 對 Q4 的分店清單查表換名稱","display":"查無對應時顯示原始 storeId","flags":["exception"],"note":"全站其他表格由後端直接回名稱，只有此處是前端查表——後端此端點未帶 storeName。","dataHash":"24a1ccfb","displayHash":"fecb963f"}]}],"notes":[{"title":"Q2 一次取全量的理由","body":"趨勢圖需要整段序列，分頁取會讓前端得自行串頁；與後端確認過資料量上限後改為一次取全量。"},{"title":"退款卡片的條件性請求","body":"Q5 只在卡片展開時才發，故 Network 對帳時進頁不會看到它——這是預期行為，不是漏打。"}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"intervalLabels":{"60000":"每分鐘","3600000":"每小時"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"每小時","Q3":"每小時","Q4":"不輪詢","Q5":"每小時"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":5,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60},{"httpCount":4,"queryCount":3,"intervalMs":3600000,"perHour":4}],"bySource":{"backend-agg":2,"direct":4,"fe-agg":1,"fe-const":1,"fe-derive":2,"fe-pick":1},"conditionalHttpCount":1,"fieldCount":11,"httpCount":6,"perHour":64,"pollingHttpCount":5,"pollingQueryCount":4,"queryCount":5,"sectionCount":3}}</script>
     <script>
 /* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
 (() => {
   'use strict';
 
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+
+  /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
+  const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
   const STORE_KEY = `fieldproof:v1:${PAGE.page}`;
   const PREF_KEY = `fieldproof:v1:${PAGE.page}:prefs`;
 
   const SOURCE_LABELS = PAGE.sourceLabels;
   const FLAG_META = PAGE.flagMeta;
-  const REFETCH_LABELS = { hourly: '每整點', minutely: '每整分', none: '不輪詢' };
 
   // ---------- state ----------
 
@@ -1340,7 +1342,7 @@ tr.reconcile--conditional td {
         .join('');
       return (
         `<div class="detail__box">` +
-        `<div class="detail__title">${esc(id)} · ${REFETCH_LABELS[query.refetch]}` +
+        `<div class="detail__title">${esc(id)} · ${esc(PAGE.refetchLabels[id])}` +
         (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
         (query.filter
           ? `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button>`
@@ -1448,7 +1450,7 @@ tr.reconcile--conditional td {
     return (
       `<tr class="group"><td colspan="9">` +
       `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
-      `<span class="group__key">${esc(query.endpoint)} ・ ${REFETCH_LABELS[query.refetch]}${
+      `<span class="group__key">${esc(query.endpoint)} ・ ${esc(PAGE.refetchLabels[group.key])}${
         query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
       }</span>` +
       `<span class="group__meta" title="${esc(params)}">` +
@@ -1692,8 +1694,16 @@ tr.reconcile--conditional td {
     document.getElementById('reconcile-body').innerHTML =
       `<p class="reconcile__lead">進頁後 Network 面板應出現 <b>${PAGE.stats.baseHttpCount} 支</b> request` +
       `（不含條件性請求與瀏覽器自身的資源請求）。` +
-      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每分鐘再 ${PAGE.stats.perMinute} 支、` +
-      `每整點再 ${PAGE.stats.perHour - PAGE.stats.perMinute * 60} 支。</p>` +
+      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每小時再 ${fmtRate(PAGE.stats.perHour)} 支` +
+      (PAGE.stats.byInterval.length > 1
+        ? `（${PAGE.stats.byInterval
+            .map(
+              (b) =>
+                `${esc(PAGE.intervalLabels[b.intervalMs])} × ${b.httpCount} 支 = ${fmtRate(b.perHour)}`,
+            )
+            .join('；')}）`
+        : '') +
+      `。</p>` +
       `<table class="reconcile"><thead><tr>` +
       `<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>` +
       `</tr></thead><tbody>${rowsHtml}</tbody></table>` +

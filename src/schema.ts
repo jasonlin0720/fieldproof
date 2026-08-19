@@ -37,8 +37,13 @@ export const flagSchema = z.enum([
 /** 區塊形態。撐住各頁差異：儀表板類頁面多為 card，清單類頁面多為 filter + chart + table。 */
 export const sectionKindSchema = z.enum(['card', 'chart', 'table', 'filter', 'form']);
 
-/** 自動刷新頻率。`none` 不計入輪詢負載統計。 */
-export const refetchSchema = z.enum(['minutely', 'hourly', 'none']);
+/**
+ * 自動刷新間隔（毫秒），`'none'` 為不輪詢、不計入輪詢負載統計。
+ *
+ * 只描述頻率，不描述對齊方式——「對齊整點重取」與「掛載後每小時重取」在負載統計上
+ * 等價，皆為 3_600_000；需要說明對齊行為請寫在該查詢的 `note`。
+ */
+export const refetchSchema = z.union([z.number().int().positive(), z.literal('none')]);
 
 /** 查詢的發起來源。非 `card` 者不對應任何欄位，只出現在 Network 對帳清單。 */
 export const originSchema = z.enum([
@@ -159,6 +164,7 @@ export type Flag = z.infer<typeof flagSchema>;
 export type Note = z.infer<typeof noteSchema>;
 export type Origin = z.infer<typeof originSchema>;
 export type Query = z.infer<typeof querySchema>;
+export type Refetch = z.infer<typeof refetchSchema>;
 export type Section = z.infer<typeof sectionSchema>;
 export type SectionKind = z.infer<typeof sectionKindSchema>;
 export type SourceKind = z.infer<typeof sourceKindSchema>;

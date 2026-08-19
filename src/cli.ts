@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 import { build } from './build.js';
 import { loadConfig } from './config.js';
+import { formatRate } from './format.js';
 
 const USAGE = `用法：
   fieldproof build [選項]        驗證資料並生成 HTML / markdown / index
@@ -87,7 +88,7 @@ function main(): void {
     );
     console.log(
       `  單次全量刷新 ${stats.pollingHttpCount} 支 HTTP　` +
-        `每分鐘 ${stats.perMinute} 支　每小時 ${stats.perHour} 支`,
+        `每小時 ${formatRate(stats.perHour)} 支`,
     );
   }
   for (const out of result.outputs) console.log(`  → ${out.path}`);
