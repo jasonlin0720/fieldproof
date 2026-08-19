@@ -9,11 +9,13 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import type { RenderContext, ResolvedConfig } from './config.js';
+import type { Locale } from './locales/index.js';
 
 import { renderHtml } from './render/html.js';
 import { renderIndex } from './render/index-page.js';
 import { renderMarkdown } from './render/markdown.js';
 import { type FieldMapPage, fieldMapPageSchema } from './schema.js';
+import { DEFAULT_LOCALE, getLocale } from './locales/index.js';
 import { computeStats, type FieldMapStats } from './stats.js';
 
 export interface BuildOutput {
@@ -29,9 +31,9 @@ export interface BuildResult {
 }
 
 /** 讀取並驗證資料目錄下的所有頁面；驗證失敗即中止並指出頁 / 區塊 / 欄位路徑。 */
-export function loadPages(dataDir: string): FieldMapPage[] {
+export function loadPages(dataDir: string, locale: Locale = DEFAULT_LOCALE): FieldMapPage[] {
   if (!existsSync(dataDir)) {
-    throw new Error(`資料目錄不存在：${dataDir}`);
+    throw new Error(locale.errors.dataDirMissing(dataDir));
   }
 
   const files = readdirSync(dataDir)
@@ -39,7 +41,7 @@ export function loadPages(dataDir: string): FieldMapPage[] {
     .sort();
 
   if (files.length === 0) {
-    throw new Error(`${dataDir} 下沒有任何 .json 資料檔`);
+    throw new Error(locale.errors.noDataFiles(dataDir));
   }
 
   return files.map((file) => {
@@ -50,36 +52,36 @@ export function loadPages(dataDir: string): FieldMapPage[] {
       const detail = parsed.error.issues
         .map((issue) => `  ${issue.path.join('.') || '(root)'}: ${issue.message}`)
         .join('\n');
-      throw new Error(`${file} 資料格式不符：\n${detail}`);
+      throw new Error(locale.errors.invalidPage(file, detail));
     }
 
     const expectedPage = basename(file, '.json');
     if (parsed.data.page !== expectedPage) {
-      throw new Error(`${file} 的 page（${parsed.data.page}）與檔名（${expectedPage}）不一致`);
+      throw new Error(locale.errors.pageNameMismatch(file, parsed.data.page, expectedPage));
     }
 
-    assertUniqueIds(file, parsed.data);
-    assertQueryRefs(file, parsed.data);
-    assertUniqueFilters(file, parsed.data);
+    assertUniqueIds(file, parsed.data, locale);
+    assertQueryRefs(file, parsed.data, locale);
+    assertUniqueFilters(file, parsed.data, locale);
 
     return parsed.data;
   });
 }
 
 /** section.key 與 section 內的 field.id 必須唯一——它們是驗收狀態的穩定識別。 */
-function assertUniqueIds(file: string, page: FieldMapPage): void {
+function assertUniqueIds(file: string, page: FieldMapPage, locale: Locale): void {
   const sectionKeys = new Set<string>();
 
   for (const section of page.sections) {
     if (sectionKeys.has(section.key)) {
-      throw new Error(`${file} 的 section.key 重複：${section.key}`);
+      throw new Error(locale.errors.duplicateSectionKey(file, section.key));
     }
     sectionKeys.add(section.key);
 
     const fieldIds = new Set<string>();
     for (const field of section.fields) {
       if (fieldIds.has(field.id)) {
-        throw new Error(`${file} 的 ${section.key} 內 field.id 重複：${field.id}`);
+        throw new Error(locale.errors.duplicateFieldId(file, section.key, field.id));
       }
       fieldIds.add(field.id);
     }
@@ -91,30 +93,27 @@ function assertUniqueIds(file: string, page: FieldMapPage): void {
  * 那這個欄位就失去意義。真的無法唯一者（如只差日期的兩支），請讓其中一支帶更精確的
  * 片段，另一支以 `filterNote` 說明會一併匹配到誰、怎麼排除。
  */
-function assertUniqueFilters(file: string, page: FieldMapPage): void {
+function assertUniqueFilters(file: string, page: FieldMapPage, locale: Locale): void {
   const seen = new Map<string, string>();
   for (const [id, query] of Object.entries(page.queries)) {
     if (query.filter === undefined) continue;
     const owner = seen.get(query.filter);
     if (owner !== undefined) {
-      throw new Error(
-        `${file} 的 ${id} 與 ${owner} 使用了相同的 Network 篩選字串「${query.filter}」——` +
-          '兩支查詢在 DevTools 面板中將無法分辨，請改用更精確的片段。',
-      );
+      throw new Error(locale.errors.duplicateFilter(file, id, owner, query.filter));
     }
     seen.set(query.filter, id);
   }
 }
 
 /** field.query 參照的 query id 必須存在於 queries。 */
-function assertQueryRefs(file: string, page: FieldMapPage): void {
+function assertQueryRefs(file: string, page: FieldMapPage, locale: Locale): void {
   for (const section of page.sections) {
     for (const field of section.fields) {
       if (field.query === undefined) continue;
       const ids = Array.isArray(field.query) ? field.query : [field.query];
       for (const id of ids) {
         if (!(id in page.queries)) {
-          throw new Error(`${file} 的 ${section.key}/${field.id} 參照了不存在的查詢：${id}`);
+          throw new Error(locale.errors.unknownQueryRef(file, section.key, field.id, id));
         }
       }
     }
@@ -131,12 +130,14 @@ function isStale(path: string, content: string): boolean {
  * 執行一次建置。`check` 為真時只比對不寫入，結果放在 `BuildResult.stale`。
  */
 export function build(config: ResolvedConfig, options: { check?: boolean } = {}): BuildResult {
-  const pages = loadPages(config.dataDirAbs);
+  const locale = getLocale(config.locale);
+  const pages = loadPages(config.dataDirAbs, locale);
   const entries = pages.map((page) => ({ page, stats: computeStats(page) }));
 
   const context: RenderContext = {
     command: config.command,
     dataDir: config.dataDir,
+    locale,
   };
   const wants = (kind: (typeof config.outputs)[number]): boolean => config.outputs.includes(kind);
 

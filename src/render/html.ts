@@ -14,18 +14,9 @@ import type { RenderContext } from '../config.js';
 import type { Field, FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
-import { formatInterval, formatRate } from '../format.js';
-import { FLAG_META, ORIGIN_LABELS, SOURCE_LABELS } from '../schema.js';
+import { fmt, formatInterval, formatRate } from '../format.js';
 
 const ASSETS_DIR = fileURLToPath(new URL('../assets/', import.meta.url));
-
-const SECTION_KIND_LABELS = {
-  card: '卡片',
-  chart: '圖表',
-  filter: '篩選',
-  form: '表單',
-  table: '表格',
-} as const;
 
 /**
  * 欄位定義的指紋，用於「上次驗收後定義有沒有改過」。
@@ -67,12 +58,15 @@ function escapeJson(value: string): string {
 function multiFilter(id: string, label: string): string {
   return `
         <details class="multi" id="${id}">
-          <summary class="multi__summary">${label} <span class="multi__count" style="display:none"></span></summary>
+          <summary class="multi__summary">${escapeHtml(label)} <span class="multi__count" style="display:none"></span></summary>
           <div class="multi__panel"></div>
         </details>`;
 }
 
 export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: RenderContext): string {
+  const { locale } = ctx;
+  const { ui } = locale;
+
   const css = readFileSync(join(ASSETS_DIR, 'app.css'), 'utf8');
   const js = readFileSync(join(ASSETS_DIR, 'app.js'), 'utf8');
 
@@ -87,25 +81,44 @@ export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: Render
           displayHash: displayHash(field),
         })),
       })),
-      flagMeta: FLAG_META,
+      flagMeta: locale.flag,
       // 間隔標籤預先算好注入，瀏覽器端不重寫一套格式化規則。
       intervalLabels: Object.fromEntries(
-        stats.byInterval.map((load) => [load.intervalMs, formatInterval(load.intervalMs)]),
+        stats.byInterval.map((load) => [load.intervalMs, formatInterval(load.intervalMs, locale)]),
       ),
-      originLabels: ORIGIN_LABELS,
+      originLabels: locale.origin,
       refetchLabels: Object.fromEntries(
-        Object.entries(page.queries).map(([id, query]) => [id, formatInterval(query.refetch)]),
+        Object.entries(page.queries).map(([id, query]) => [
+          id,
+          formatInterval(query.refetch, locale),
+        ]),
       ),
-      sectionKindLabels: SECTION_KIND_LABELS,
-      sourceLabels: SOURCE_LABELS,
+      sectionKindLabels: locale.sectionKind,
+      sourceLabels: locale.source,
       stats,
+      ui,
     }),
   );
+
+  const meta = [
+    page.route === undefined ? '' : `<code>${escapeHtml(page.route)}</code>`,
+    fmt(ui.metaSections, { n: stats.sectionCount }),
+    fmt(ui.metaFields, { n: stats.fieldCount }),
+    fmt(ui.metaQueries, {
+      http: stats.pollingHttpCount,
+      n: stats.queryCount,
+      perHour: formatRate(stats.perHour),
+      polling: stats.pollingQueryCount,
+    }),
+    fmt(ui.metaAudited, { date: escapeHtml(page.auditedAt) }),
+  ]
+    .filter(Boolean)
+    .join(' ・ ');
 
   const notes = page.notes?.length
     ? `
       <section class="notes">
-        <h2>已知落差 / 注意事項</h2>
+        <h2>${escapeHtml(ui.notesHeading)}</h2>
         <ol>
 ${page.notes
   .map(
@@ -118,16 +131,15 @@ ${page.notes
     : '';
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="${locale.htmlLang}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(page.title)} 欄位對照 · 驗收</title>
+    <title>${escapeHtml(fmt(ui.pageTitle, { title: page.title }))}</title>
     <!-- 空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求 -->
     <link rel="icon" href="data:," />
     <!--
-      本檔由 \`${ctx.command}\` 從 ${ctx.dataDir}/${page.page}.json 生成，請勿手改。
-      要改內容請改 JSON 後重跑。
+      ${fmt(ui.generatedComment, { command: ctx.command, dataPath: `${ctx.dataDir}/${page.page}.json` })}
     -->
     <style>
 ${css}
@@ -136,46 +148,42 @@ ${css}
   <body>
     <header class="toolbar">
       <div>
-        <h1>${escapeHtml(page.title)} 欄位對照</h1>
+        <h1>${escapeHtml(fmt(ui.heading, { title: page.title }))}</h1>
         <p class="toolbar__meta">
-          ${page.route === undefined ? '' : `<code>${escapeHtml(page.route)}</code> ・`}
-          ${stats.sectionCount} 區塊 ・ ${stats.fieldCount} 欄位 ・
-          ${stats.queryCount} 查詢（${stats.pollingQueryCount} 輪詢，單次全量 ${stats.pollingHttpCount} 支 HTTP；
-          每小時 ${formatRate(stats.perHour)} 支）・
-          盤點 ${escapeHtml(page.auditedAt)}
+          ${meta}
         </p>
       </div>
       <div class="toolbar__spacer"></div>
       <div class="progress">
         <div class="progress__text">
-          <span>已驗 <b id="progress-done">0/0</b> <span id="visible-count"></span></span>
-          <span id="progress-ng">無問題</span>
+          <span>${escapeHtml(ui.progressVerified)} <b id="progress-done">0/0</b> <span id="visible-count"></span></span>
+          <span id="progress-ng">${escapeHtml(ui.progressNoProblem)}</span>
         </div>
         <div class="progress__bar"><span class="progress__fill" id="progress-fill"></span></div>
       </div>
-      <button class="btn" type="button" id="reconcile">Network 對帳</button>
-      <button class="btn" type="button" id="export">匯出問題清單</button>
-      <button class="btn btn--danger" type="button" id="reset">重置</button>
+      <button class="btn" type="button" id="reconcile">${escapeHtml(ui.btnReconcile)}</button>
+      <button class="btn" type="button" id="export">${escapeHtml(ui.btnExport)}</button>
+      <button class="btn btn--danger" type="button" id="reset">${escapeHtml(ui.btnReset)}</button>
     </header>
 
     <div class="filters">
-      <input class="search" type="search" id="search" placeholder="搜尋欄位 / response / 取值方式…" aria-label="搜尋" />
+      <input class="search" type="search" id="search" placeholder="${escapeHtml(ui.searchPlaceholder)}" aria-label="${escapeHtml(ui.searchAria)}" />
 
-      <span class="filters__label">分組</span>
-      <div class="seg" role="group" aria-label="分組方式">
-        <button type="button" data-group="section" aria-pressed="true">依區塊</button>
-        <button type="button" data-group="query" aria-pressed="false">依查詢</button>
+      <span class="filters__label">${escapeHtml(ui.groupLabel)}</span>
+      <div class="seg" role="group" aria-label="${escapeHtml(ui.groupAria)}">
+        <button type="button" data-group="section" aria-pressed="true">${escapeHtml(ui.groupBySection)}</button>
+        <button type="button" data-group="query" aria-pressed="false">${escapeHtml(ui.groupByQuery)}</button>
       </div>
-${multiFilter('filter-section', '區塊')}
-${multiFilter('filter-query', '查詢')}
-${multiFilter('filter-source', '取得方式')}
+${multiFilter('filter-section', ui.filterSection)}
+${multiFilter('filter-query', ui.filterQuery)}
+${multiFilter('filter-source', ui.filterSource)}
 
-      <span class="filters__label">狀態</span>
-      <div class="seg" role="group" aria-label="驗收狀態">
-        <button type="button" data-status="all" aria-pressed="true">全部</button>
-        <button type="button" data-status="unverified" aria-pressed="false">只看未驗</button>
-        <button type="button" data-status="problem" aria-pressed="false">只看有問題</button>
-        <button type="button" data-status="stale" aria-pressed="false">定義已變更</button>
+      <span class="filters__label">${escapeHtml(ui.statusLabel)}</span>
+      <div class="seg" role="group" aria-label="${escapeHtml(ui.statusAria)}">
+        <button type="button" data-status="all" aria-pressed="true">${escapeHtml(ui.statusAll)}</button>
+        <button type="button" data-status="unverified" aria-pressed="false">${escapeHtml(ui.statusUnverified)}</button>
+        <button type="button" data-status="problem" aria-pressed="false">${escapeHtml(ui.statusProblem)}</button>
+        <button type="button" data-status="stale" aria-pressed="false">${escapeHtml(ui.statusStale)}</button>
       </div>
     </div>
 
@@ -195,14 +203,14 @@ ${multiFilter('filter-source', '取得方式')}
         <thead>
           <tr>
             <th><span class="sr-only"></span></th>
-            <th>UI 欄位</th>
-            <th>查詢</th>
-            <th>response 欄位</th>
-            <th>預期取值 / 顯示</th>
-            <th class="col-actual">畫面實際值</th>
-            <th>資料</th>
-            <th>顯示</th>
-            <th class="col-note">備註</th>
+            <th>${escapeHtml(ui.colField)}</th>
+            <th>${escapeHtml(ui.colQuery)}</th>
+            <th>${escapeHtml(ui.colResp)}</th>
+            <th>${escapeHtml(ui.colExpect)}</th>
+            <th class="col-actual">${escapeHtml(ui.colActual)}</th>
+            <th>${escapeHtml(ui.colData)}</th>
+            <th>${escapeHtml(ui.colDisplay)}</th>
+            <th class="col-note">${escapeHtml(ui.colNote)}</th>
           </tr>
         </thead>
         <tbody id="tbody"></tbody>
@@ -212,8 +220,8 @@ ${notes}
 
     <dialog class="dlg" id="reconcile-dlg">
       <div class="dlg__head">
-        <strong>Network 對帳清單</strong>
-        <button class="btn" type="button" id="reconcile-close">關閉</button>
+        <strong>${escapeHtml(ui.reconcileTitle)}</strong>
+        <button class="btn" type="button" id="reconcile-close">${escapeHtml(ui.btnClose)}</button>
       </div>
       <div class="dlg__body" id="reconcile-body"></div>
     </dialog>

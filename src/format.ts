@@ -5,6 +5,7 @@
  * 避免同一套規則在兩處各自演化。
  */
 
+import type { Locale } from './locales/index.js';
 import type { Refetch } from './schema.js';
 
 const HOUR_MS = 3_600_000;
@@ -17,25 +18,37 @@ const SECOND_MS = 1_000;
  * 只描述頻率，不描述對齊方式——「對齊整點」與「掛載後每小時」在負載上等價，
  * 需要說明對齊行為請寫在該查詢的 `note`。
  */
-export function formatInterval(refetch: Refetch): string {
-  if (refetch === 'none') return '不輪詢';
+export function formatInterval(refetch: Refetch, locale: Locale): string {
+  const { interval } = locale;
+  if (refetch === 'none') return interval.none;
 
-  for (const [unit, label] of [
-    [HOUR_MS, '小時'],
-    [MINUTE_MS, '分'],
-    [SECOND_MS, '秒'],
-  ] as const) {
-    if (refetch % unit === 0) {
-      const n = refetch / unit;
-      if (n !== 1) return `每 ${n} ${label}`;
-      return label === '小時' ? '每小時' : label === '分' ? '每分鐘' : '每秒';
+  const units = [
+    { ms: HOUR_MS, one: interval.hour, many: interval.hours },
+    { ms: MINUTE_MS, one: interval.minute, many: interval.minutes },
+    { ms: SECOND_MS, one: interval.second, many: interval.seconds },
+  ];
+
+  for (const unit of units) {
+    if (refetch % unit.ms === 0) {
+      const n = refetch / unit.ms;
+      return n === 1 ? unit.one : unit.many(n);
     }
   }
 
-  return `每 ${refetch} 毫秒`;
+  return interval.ms(refetch);
 }
 
 /** 每小時支數。間隔不整除一小時時會有小數，取一位；整數則不留小數點。 */
 export function formatRate(perHour: number): string {
   return Number.isInteger(perHour) ? String(perHour) : perHour.toFixed(1);
+}
+
+/**
+ * `{name}` 佔位符代入。`ui` 區段的字串會被序列化進瀏覽器，不能用函式，故以此為替代。
+ * app.js 有一份同規則的實作。
+ */
+export function fmt(template: string, vars: Record<string, number | string> = {}): string {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) =>
+    Object.hasOwn(vars, key) ? String(vars[key]) : '',
+  );
 }

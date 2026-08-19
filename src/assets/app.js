@@ -3,6 +3,13 @@
   'use strict';
 
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
+  const T = PAGE.ui;
+
+  /** `{name}` 佔位符代入（與產生端 format.ts 的 fmt 同規則）。 */
+  const t = (key, vars) =>
+    (T[key] || '').replace(/\{(\w+)\}/g, (_, k) =>
+      vars && Object.hasOwn(vars, k) ? String(vars[k]) : '',
+    );
 
   /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
   const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -41,7 +48,7 @@
     try {
       localStorage.setItem(STORE_KEY, JSON.stringify(marks));
     } catch (error) {
-      console.warn('無法寫入 localStorage', error);
+      console.warn(T.warnStorage, error);
     }
   }
 
@@ -224,12 +231,12 @@
       `<button class="mark" type="button" data-id="${esc(row.id)}" data-kind="${kind}" ` +
       `data-mark="${value}" aria-pressed="${current === value}" ` +
       `aria-label="${esc(row.section.title)} ${esc(row.field.label)} ${
-        kind === 'data' ? '資料' : '顯示'
+        kind === 'data' ? T.sideData : T.sideDisplay
       }${label}">${value === 'ok' ? '✓' : '✗'}</button>`;
     return (
       `<div class="marks${stale ? ' marks--stale' : ''}"` +
-      (stale ? ` title="這一側的定義在上次標記後改過了，請重驗"` : '') +
-      `>${btn('ok', '正確')}${btn('ng', '有問題')}</div>`
+      (stale ? ` title="${esc(T.markStaleHint)}"` : '') +
+      `>${btn('ok', T.markOk)}${btn('ng', T.markNg)}</div>`
     );
   }
 
@@ -239,26 +246,26 @@
     const stale = isStale(row.id);
     const resp =
       row.field.resp === '—'
-        ? '<span class="resp resp--none">—（不來自 API）</span>'
+        ? `<span class="resp resp--none">${esc(T.respNone)}</span>`
         : `<span class="resp">${esc(row.field.resp)}</span>`;
 
     return (
       `<tr class="row${expanded ? ' row--expanded' : ''}${hasProblem(row.id) ? ' row--ng' : ''}` +
       `${stale ? ' row--stale' : ''}" data-id="${esc(row.id)}">` +
       `<td><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
-      `aria-expanded="${expanded}" aria-label="展開細節">${expanded ? '▾' : '▸'}</button></td>` +
+      `aria-expanded="${expanded}" aria-label="${esc(T.expandAria)}">${expanded ? '▾' : '▸'}</button></td>` +
       `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field)}` +
       (stale
-        ? `<span class="stale-tag" title="上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗">⟳ ${
+        ? `<span class="stale-tag" title="${esc(T.staleTagTitle)}">⟳ ${
             isStaleSide(row.id, 'data') && isStaleSide(row.id, 'display')
-              ? '定義已變更'
+              ? T.staleBoth
               : isStaleSide(row.id, 'data')
-                ? '取值定義已變更'
-                : '顯示定義已變更'
+                ? T.staleData
+                : T.staleDisplay
           }</span>`
         : '') +
       (row.field.checks
-        ? `<span class="checks-tag" title="展開可見 ${row.field.checks.length} 條驗證檢查點">${row.field.checks.length} 檢查點</span>`
+        ? `<span class="checks-tag" title="${esc(t('checksTagTitle', { n: row.field.checks.length }))}">${esc(t('checksTag', { n: row.field.checks.length }))}</span>`
         : '') +
       `</td>` +
       `<td>${queryChips(row)}</td>` +
@@ -267,12 +274,12 @@
       `<span class="how__display">${esc(row.field.display)}</span></div></td>` +
       `<td class="cell-actual"><input class="cell-input cell-input--actual" type="text" ` +
       `data-input="actual" data-id="${esc(row.id)}" name="actual:${esc(row.id)}" ` +
-      `value="${esc(m.actual || '')}" placeholder="畫面上看到的值" aria-label="畫面實際值"></td>` +
+      `value="${esc(m.actual || '')}" placeholder="${esc(T.actualPlaceholder)}" aria-label="${esc(T.actualAria)}"></td>` +
       `<td>${markCell(row, 'data')}</td>` +
       `<td>${markCell(row, 'display')}</td>` +
       `<td class="cell-note"><input class="cell-input" type="text" data-input="note" ` +
       `data-id="${esc(row.id)}" name="note:${esc(row.id)}" value="${esc(m.note || '')}" ` +
-      `placeholder="備註" aria-label="備註"></td>` +
+      `placeholder="${esc(T.notePlaceholder)}" aria-label="${esc(T.noteAria)}"></td>` +
       `</tr>` +
       (expanded ? detailHtml(row) : '')
     );
@@ -288,22 +295,24 @@
       return (
         `<div class="detail__box">` +
         `<div class="detail__title">${esc(id)} · ${esc(PAGE.refetchLabels[id])}` +
-        (query.httpCount && query.httpCount > 1 ? ` · 併發 ${query.httpCount} 支` : '') +
+        (query.httpCount && query.httpCount > 1
+          ? ` · ${esc(t('detailConcurrent', { n: query.httpCount }))}`
+          : '') +
         (query.filter
-          ? `<button class="btn" type="button" data-copy="${esc(id)}">複製 Network 篩選</button>`
+          ? `<button class="btn" type="button" data-copy="${esc(id)}">${esc(T.btnCopyNetworkFilter)}</button>`
           : '') +
         `</div>` +
         (query.filter
-          ? `<div class="detail__row"><dt>篩選字串</dt><dd><b>${esc(query.filter)}</b></dd></div>`
+          ? `<div class="detail__row"><dt>${esc(T.detailFilter)}</dt><dd><b>${esc(query.filter)}</b></dd></div>`
           : '') +
-        `<div class="detail__row"><dt>端點</dt><dd>${esc(query.endpoint)}</dd></div>` +
-        `<div class="detail__row"><dt>SDK</dt><dd>${esc(query.sdk)}</dd></div>` +
+        `<div class="detail__row"><dt>${esc(T.detailEndpoint)}</dt><dd>${esc(query.endpoint)}</dd></div>` +
+        `<div class="detail__row"><dt>${esc(T.detailSdk)}</dt><dd>${esc(query.sdk)}</dd></div>` +
         params +
         (query.enabledWhen
-          ? `<div class="detail__row"><dt>啟用條件</dt><dd>${esc(query.enabledWhen)}</dd></div>`
+          ? `<div class="detail__row"><dt>${esc(T.detailEnabledWhen)}</dt><dd>${esc(query.enabledWhen)}</dd></div>`
           : '') +
         (query.filterNote
-          ? `<p class="detail__note"><b>篩選提醒：</b>${esc(query.filterNote)}</p>`
+          ? `<p class="detail__note"><b>${esc(T.detailFilterNote)}</b>${esc(query.filterNote)}</p>`
           : '') +
         (query.note ? `<p class="detail__note">${esc(query.note)}</p>` : '') +
         `</div>`
@@ -313,8 +322,8 @@
     if (row.field.checks && row.field.checks.length) {
       boxes.unshift(
         `<div class="detail__box detail__box--checks">` +
-          `<div class="detail__title">怎麼驗（${row.field.checks.length} 條）</div>` +
-          `<table class="checks"><thead><tr><th>給定</th><th>畫面應該</th></tr></thead><tbody>` +
+          `<div class="detail__title">${esc(t('detailChecksTitle', { n: row.field.checks.length }))}</div>` +
+          `<table class="checks"><thead><tr><th>${esc(T.detailChecksGiven)}</th><th>${esc(T.detailChecksExpect)}</th></tr></thead><tbody>` +
           row.field.checks
             .map(
               (c) =>
@@ -334,11 +343,12 @@
       );
     }
     if (row.field.note) notes.push(esc(row.field.note));
-    if (row.section.emptyRule) notes.push(`<b>空狀態：</b>${esc(row.section.emptyRule)}`);
+    if (row.section.emptyRule)
+      notes.push(`<b>${esc(T.detailEmptyRule)}</b>${esc(row.section.emptyRule)}`);
 
     if (notes.length) {
       boxes.push(
-        `<div class="detail__box"><div class="detail__title">註記</div>` +
+        `<div class="detail__box"><div class="detail__title">${esc(T.detailNoteTitle)}</div>` +
           notes.map((n) => `<p class="detail__note">${n}</p>`).join('') +
           `</div>`,
       );
@@ -346,8 +356,8 @@
 
     if (!boxes.length) {
       boxes.push(
-        `<div class="detail__box"><div class="detail__title">註記</div>` +
-          `<p class="detail__note">此欄位不來自任何 API，由前端生成。</p></div>`,
+        `<div class="detail__box"><div class="detail__title">${esc(T.detailNoteTitle)}</div>` +
+          `<p class="detail__note">${esc(T.detailNoApi)}</p></div>`,
       );
     }
 
@@ -358,8 +368,8 @@
     const done = group.rows.filter((row) => isVerified(row.id)).length;
     const ng = group.rows.filter((row) => hasProblem(row.id)).length;
     const progress =
-      `${done}/${group.rows.length} 已驗` +
-      (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+      t('groupProgress', { done, total: group.rows.length }) +
+      (ng ? ` · <b style="color:var(--ng)">${esc(t('groupNg', { n: ng }))}</b>` : '');
 
     if (group.kind === 'section') {
       const section = group.section;
@@ -372,7 +382,7 @@
         `<span class="group__key">${esc(section.key)}</span>` +
         `<span class="group__meta">${esc(PAGE.sectionKindLabels[section.kind])}${meta ? ' ・ ' + meta : ''}</span>` +
         (section.emptyRule
-          ? `<span class="group__info" title="空狀態：${esc(section.emptyRule)}">ⓘ 空狀態</span>`
+          ? `<span class="group__info" title="${esc(t('groupEmptyTitle', { rule: section.emptyRule }))}">${esc(T.groupEmptyInfo)}</span>`
           : '') +
         `<span class="group__progress">${progress}</span></div>` +
         `</td></tr>`
@@ -382,8 +392,8 @@
     if (!group.query) {
       return (
         `<tr class="group"><td colspan="9"><div class="group__head">` +
-        `<span class="group__title">無查詢（前端生成）</span>` +
-        `<span class="group__meta">X 軸 labels、硬編單位、local UI state</span>` +
+        `<span class="group__title">${esc(T.groupNoQuery)}</span>` +
+        `<span class="group__meta">${esc(T.groupNoQueryMeta)}</span>` +
         `<span class="group__progress">${progress}</span></div></td></tr>`
       );
     }
@@ -396,14 +406,16 @@
       `<tr class="group"><td colspan="9">` +
       `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
       `<span class="group__key">${esc(query.endpoint)} ・ ${esc(PAGE.refetchLabels[group.key])}${
-        query.httpCount && query.httpCount > 1 ? ` ・ 併發 ${query.httpCount} 支` : ''
+        query.httpCount && query.httpCount > 1
+          ? ` ・ ${esc(t('detailConcurrent', { n: query.httpCount }))}`
+          : ''
       }</span>` +
       `<span class="group__meta" title="${esc(params)}">` +
       (query.filter ? `<code class="group__filter">${esc(query.filter)}</code> ` : '') +
       `${esc(params)}</span>` +
       (query.filter
         ? `<button class="btn" type="button" data-copy="${esc(group.key)}" ` +
-          `title="複製「${esc(query.filter)}」貼進 DevTools Network filter">複製篩選</button>`
+          `title="${esc(t('copyFilterTitle', { filter: query.filter }))}">${esc(T.btnCopyFilter)}</button>`
         : '') +
       `<span class="group__progress">${progress}</span></div>` +
       `</td></tr>`
@@ -420,7 +432,7 @@
 
     body.innerHTML = groups.length
       ? groups.map((g) => groupHeadHtml(g) + g.rows.map(rowHtml).join('')).join('')
-      : `<tr><td colspan="9"><div class="empty-state">沒有符合條件的欄位</div></td></tr>`;
+      : `<tr><td colspan="9"><div class="empty-state">${esc(T.emptyState)}</div></td></tr>`;
 
     renderProgress(rows.length);
   }
@@ -429,12 +441,14 @@
     const done = ROWS.filter((row) => isVerified(row.id)).length;
     const ng = ROWS.filter((row) => hasProblem(row.id)).length;
     document.getElementById('progress-done').textContent = `${done}/${ROWS.length}`;
-    document.getElementById('progress-ng').textContent = ng ? `${ng} 有問題` : '無問題';
+    document.getElementById('progress-ng').textContent = ng
+      ? t('progressProblem', { n: ng })
+      : T.progressNoProblem;
     document.getElementById('progress-ng').classList.toggle('progress__problem', ng > 0);
     document.getElementById('progress-fill').style.width =
       `${ROWS.length ? (done / ROWS.length) * 100 : 0}%`;
     document.getElementById('visible-count').textContent =
-      visible === ROWS.length ? '' : `（篩選中：${visible}）`;
+      visible === ROWS.length ? '' : t('progressFiltered', { n: visible });
   }
 
   /**
@@ -481,7 +495,8 @@
     const done = ids.filter(isVerified).length;
     const ng = ids.filter(hasProblem).length;
     groupEl.querySelector('.group__progress').innerHTML =
-      `${done}/${ids.length} 已驗` + (ng ? ` · <b style="color:var(--ng)">${ng} 有問題</b>` : '');
+      `${done}/${ids.length} 已驗` +
+      (ng ? ` · <b style="color:var(--ng)">${esc(t('groupNg', { n: ng }))}</b>` : '');
   }
 
   // ---------- 多選篩選器 ----------
@@ -527,18 +542,21 @@
     const lines = [
       `## ${PAGE.title} 驗收問題清單`,
       '',
-      `已驗 ${done}/${ROWS.length} · 有問題 ${problems.length}`,
+      t('reportSummary', { done, problems: problems.length, total: ROWS.length }),
       '',
     ];
 
     if (!problems.length) {
-      lines.push('全數通過，無標記為有問題的欄位。');
+      lines.push(T.reportAllPass);
       return lines.join('\n');
     }
 
     for (const row of problems) {
       const m = markOf(row.id);
-      const failed = [m.data === 'ng' ? '資料' : null, m.display === 'ng' ? '顯示' : null]
+      const failed = [
+        m.data === 'ng' ? T.sideData : null,
+        m.display === 'ng' ? T.sideDisplay : null,
+      ]
         .filter(Boolean)
         .join('、');
       lines.push(`### ${row.section.title} · ${row.field.label}`);
@@ -549,13 +567,15 @@
           .join(' · ');
         lines.push(`- 查詢：${id} \`${query.endpoint}\`（${params}）`);
       }
-      if (!row.queryIds.length) lines.push('- 查詢：—（前端生成）');
+      if (!row.queryIds.length) lines.push(T.reportQueryNone);
       lines.push(`- response：\`${row.field.resp}\``);
-      lines.push(`- 預期取值：${SOURCE_LABELS[row.field.source]} —— ${row.field.how}`);
-      lines.push(`- 預期顯示：${row.field.display}`);
+      lines.push(
+        t('reportExpectValue', { how: row.field.how, source: SOURCE_LABELS[row.field.source] }),
+      );
+      lines.push(t('reportExpectDisplay', { display: row.field.display }));
       if (m.actual) lines.push(`- 畫面實際值：\`${m.actual}\``);
-      lines.push(`- 問題：${failed} ✗`);
-      if (m.note) lines.push(`- 備註：${m.note}`);
+      lines.push(t('reportFailed', { sides: failed }));
+      if (m.note) lines.push(t('reportNote', { note: m.note }));
       lines.push('');
     }
 
@@ -609,8 +629,8 @@
       .map(([id, query]) => {
         const count = query.httpCount || 1;
         const sections = [...new Set(usedBy.get(id) || [])];
-        const origin = query.origin ? PAGE.originLabels[query.origin] : '卡片資料';
-        const where = sections.length ? sections.join('、') : `<i>不對應任何欄位</i>`;
+        const origin = query.origin ? PAGE.originLabels[query.origin] : PAGE.originLabels.card;
+        const where = sections.length ? sections.join('、') : `<i>${esc(T.reconcileNoField)}</i>`;
         return (
           `<tr class="${query.conditional ? 'reconcile--conditional' : ''}">` +
           `<td><b>${esc(id)}</b></td>` +
@@ -618,10 +638,10 @@
           `<td>` +
           (query.filter
             ? `<code class="reconcile__filter">${esc(query.filter)}</code>` +
-              `<button class="btn" type="button" data-copy="${esc(id)}">複製</button>`
-            : '<i>未設定</i>') +
+              `<button class="btn" type="button" data-copy="${esc(id)}">${esc(T.btnCopy)}</button>`
+            : `<i>${esc(T.reconcileNoFilter)}</i>`) +
           `</td>` +
-          `<td class="reconcile__count">${count} 支${query.conditional ? '<sup>*</sup>' : ''}</td>` +
+          `<td class="reconcile__count">${esc(t('reconcileCount', { n: count }))}${query.conditional ? '<sup>*</sup>' : ''}</td>` +
           `<td>${esc(origin)}</td>` +
           `<td>${where}</td>` +
           `</tr>`
@@ -631,26 +651,36 @@
 
     const conditional = entries.filter(([, q]) => q.conditional);
     const conditionalNote = conditional.length
-      ? `<p class="reconcile__note"><sup>*</sup> 條件性請求，共 ${PAGE.stats.conditionalHttpCount} 支：` +
+      ? `<p class="reconcile__note"><sup>*</sup> ${esc(t('reconcileConditional', { n: PAGE.stats.conditionalHttpCount }))}` +
         conditional.map(([id, q]) => `<b>${esc(id)}</b> ${esc(q.enabledWhen || '')}`).join('；') +
         `</p>`
       : '';
 
     document.getElementById('reconcile-body').innerHTML =
-      `<p class="reconcile__lead">進頁後 Network 面板應出現 <b>${PAGE.stats.baseHttpCount} 支</b> request` +
-      `（不含條件性請求與瀏覽器自身的資源請求）。` +
-      `其中輪詢查詢 ${PAGE.stats.pollingHttpCount} 支，之後每小時再 ${fmtRate(PAGE.stats.perHour)} 支` +
+      `<p class="reconcile__lead">` +
+      t('reconcileLead', { base: `<b>${PAGE.stats.baseHttpCount} 支</b>` }) +
+      t('reconcileLoad', {
+        perHour: fmtRate(PAGE.stats.perHour),
+        polling: PAGE.stats.pollingHttpCount,
+      }) +
       (PAGE.stats.byInterval.length > 1
-        ? `（${PAGE.stats.byInterval
-            .map(
-              (b) =>
-                `${esc(PAGE.intervalLabels[b.intervalMs])} × ${b.httpCount} 支 = ${fmtRate(b.perHour)}`,
-            )
-            .join('；')}）`
+        ? t('reconcileBreakdown', {
+            parts: PAGE.stats.byInterval
+              .map((b) =>
+                t('reconcilePart', {
+                  http: b.httpCount,
+                  label: esc(PAGE.intervalLabels[b.intervalMs]),
+                  perHour: fmtRate(b.perHour),
+                }),
+              )
+              .join(T.reconcilePartJoin),
+          })
         : '') +
       `。</p>` +
       `<table class="reconcile"><thead><tr>` +
-      `<th>#</th><th>端點</th><th>Network 篩選字串</th><th>支數</th><th>來源</th><th>餵給</th>` +
+      `<th>${esc(T.reconcileColId)}</th><th>${esc(T.reconcileColEndpoint)}</th>` +
+      `<th>${esc(T.reconcileColFilter)}</th><th>${esc(T.reconcileColCount)}</th>` +
+      `<th>${esc(T.reconcileColOrigin)}</th><th>${esc(T.reconcileColUsedBy)}</th>` +
       `</tr></thead><tbody>${rowsHtml}</tbody></table>` +
       conditionalNote;
   }
@@ -685,7 +715,7 @@
       const query = PAGE.queries[copy.dataset.copy];
       if (!query.filter) return;
       copyText(query.filter).then((ok) =>
-        toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+        toast(ok ? t('toastCopied', { text: query.filter }) : T.toastCopyFailed),
       );
       return;
     }
@@ -756,23 +786,21 @@
     const query = PAGE.queries[copy.dataset.copy];
     if (!query.filter) return;
     copyText(query.filter).then((ok) =>
-      toast(ok ? `已複製「${query.filter}」，貼進 Network filter` : '複製失敗'),
+      toast(ok ? t('toastCopied', { text: query.filter }) : T.toastCopyFailed),
     );
   });
 
   document.getElementById('export').addEventListener('click', () => {
-    copyText(buildReport()).then((ok) =>
-      toast(ok ? '問題清單已複製為 markdown' : '複製失敗，請改用瀏覽器主控台'),
-    );
+    copyText(buildReport()).then((ok) => toast(ok ? T.toastReportCopied : T.toastReportFailed));
   });
 
   document.getElementById('reset').addEventListener('click', () => {
     const done = ROWS.filter((row) => isVerified(row.id)).length;
-    if (!confirm(`確定清空全部驗收標記？目前已驗 ${done}/${ROWS.length}，此動作無法復原。`)) return;
+    if (!confirm(t('confirmReset', { done, total: ROWS.length }))) return;
     marks = {};
     save();
     render();
-    toast('已清空驗收標記');
+    toast(T.toastReset);
   });
 
   // ---------- 啟動 ----------
@@ -780,7 +808,7 @@
   const sectionCounts = countBy((row) => row.section.key);
   buildMulti(
     'filter-section',
-    '區塊',
+    T.filterSection,
     PAGE.sections.map((section) => ({
       value: section.key,
       label: section.title,
@@ -792,14 +820,14 @@
   const queryCounts = countBy((row) => (row.queryIds.length ? row.queryIds : '__none__'));
   buildMulti(
     'filter-query',
-    '查詢',
+    T.filterQuery,
     [
       ...Object.keys(PAGE.queries).map((id) => ({
         value: id,
         label: `${id} · ${PAGE.queries[id].endpoint.replace(/^GET /, '')}`,
         count: queryCounts.get(id) || 0,
       })),
-      { value: '__none__', label: '無查詢（前端生成）', count: queryCounts.get('__none__') || 0 },
+      { value: '__none__', label: T.groupNoQuery, count: queryCounts.get('__none__') || 0 },
     ].filter((item) => item.count > 0),
     state.queries,
   );
@@ -807,7 +835,7 @@
   const sourceCounts = countBy((row) => row.field.source);
   buildMulti(
     'filter-source',
-    '取得方式',
+    T.filterSource,
     Object.keys(SOURCE_LABELS)
       .map((key) => ({ value: key, label: SOURCE_LABELS[key], count: sourceCounts.get(key) || 0 }))
       .filter((item) => item.count > 0),

@@ -12,6 +12,8 @@ import { join } from 'node:path';
 import type { FieldMapPage } from '../src/schema.js';
 import type { RenderContext, ResolvedConfig } from '../src/config.js';
 
+import { DEFAULT_LOCALE } from '../src/locales/index.js';
+
 /** 一份最小但合法的頁面資料。 */
 export function makePage(): FieldMapPage {
   return structuredClone({
@@ -60,6 +62,7 @@ export function makePage(): FieldMapPage {
 export const TEST_CONTEXT: RenderContext = {
   command: 'pnpm demo',
   dataDir: 'docs/demo/data',
+  locale: DEFAULT_LOCALE,
 };
 
 /**

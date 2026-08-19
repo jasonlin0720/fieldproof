@@ -146,6 +146,27 @@ describe('renderHtml', () => {
   });
 });
 
+describe('佔位符代入', () => {
+  /** 去掉 script / style，只留真正會被讀到的標記與文字。 */
+  const stripCode = (html: string): string =>
+    html.replace(/<script[\s\S]*?<\/script>/g, '').replace(/<style[\s\S]*?<\/style>/g, '');
+
+  it('HTML 沒有殘留未代入的 {name}——打錯變數名會在此現形', () => {
+    const rendered = stripCode(renderHtml(PAGE, STATS, TEST_CONTEXT));
+    expect(rendered.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+  });
+
+  it('index 沒有殘留未代入的 {name}', () => {
+    const rendered = stripCode(renderIndex([{ page: PAGE, stats: STATS }], TEST_CONTEXT));
+    expect(rendered.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+  });
+
+  it('markdown 沒有殘留未代入的 {name}', () => {
+    const md = renderMarkdown(PAGE, STATS, TEST_CONTEXT);
+    expect(md.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+  });
+});
+
 describe('enabledWhen', () => {
   it('只有部分查詢帶條件時逐支列出，不謊報為共通條件', () => {
     // richPage 只有 Q1 帶 enabledWhen，Q2 沒有。

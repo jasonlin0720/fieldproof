@@ -6,29 +6,24 @@
  */
 
 import type { RenderContext } from '../config.js';
+import type { Locale } from '../locales/index.js';
 import type { Field, FieldMapPage, Section } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
 import { formatInterval, formatRate } from '../format.js';
-import { FLAG_META, ORIGIN_LABELS, SOURCE_LABELS } from '../schema.js';
-
-const SECTION_KIND_LABELS = {
-  card: '卡片',
-  chart: '圖表',
-  filter: '篩選',
-  form: '表單',
-  table: '表格',
-} as const;
 
 /** 各刷新間隔的負載明細。只有一種間隔時省略——括號內容會與前面的總數重複。 */
-function intervalBreakdown(stats: FieldMapStats): string {
+function intervalBreakdown(stats: FieldMapStats, locale: Locale): string {
   if (stats.byInterval.length < 2) return '';
 
-  const parts = stats.byInterval.map(
-    (load) =>
-      `${formatInterval(load.intervalMs)} × ${load.httpCount} 支 = ${formatRate(load.perHour)}`,
+  const parts = stats.byInterval.map((load) =>
+    locale.md.intervalPart(
+      formatInterval(load.intervalMs, locale),
+      load.httpCount,
+      formatRate(load.perHour),
+    ),
   );
-  return `（${parts.join('；')}）`;
+  return locale.md.intervalBreakdown(parts);
 }
 
 /** 表格儲存格：`|` 會拆欄、換行會斷表。 */
@@ -41,50 +36,50 @@ function queryIds(field: Field): string[] {
   return Array.isArray(field.query) ? field.query : [field.query];
 }
 
-function queryLabel(field: Field): string {
+function queryLabel(field: Field, locale: Locale): string {
   const ids = queryIds(field);
-  return ids.length === 0 ? '—' : ids.join(' ＋ ');
+  return ids.length === 0 ? locale.md.placeholder : ids.join(locale.md.join.query);
 }
 
-function flagLabel(field: Field): string {
+function flagLabel(field: Field, locale: Locale): string {
   if (!field.flags?.length) return '';
-  return ' ' + field.flags.map((flag) => FLAG_META[flag].icon).join('');
+  return ' ' + field.flags.map((flag) => locale.flag[flag].icon).join('');
 }
 
-function renderQueryTable(page: FieldMapPage): string[] {
-  const lines = [
-    '| #   | 端點 | Network 篩選 | 關鍵參數 | 刷新 | 支數 | 來源 |',
-    '| --- | ---- | ------------ | -------- | ---- | ---- | ---- |',
-  ];
+function renderQueryTable(page: FieldMapPage, locale: Locale): string[] {
+  const lines = [...locale.md.queryTableHead];
 
   for (const [id, query] of Object.entries(page.queries)) {
     const params = Object.entries(query.params)
       .map(([key, value]) => `\`${key}=${value}\``)
-      .join('、');
-    const origin = ORIGIN_LABELS[query.origin ?? 'card'];
-    const filter = query.filter === undefined ? '—' : `\`${cell(query.filter)}\``;
+      .join(locale.md.join.params);
+    const origin = locale.origin[query.origin ?? 'card'];
+    const filter = query.filter === undefined ? locale.md.placeholder : `\`${cell(query.filter)}\``;
+    const count =
+      locale.md.queryCount(query.httpCount ?? 1) +
+      (query.conditional ? locale.md.conditionalSuffix : '');
+
     lines.push(
-      `| **${id}** | \`${cell(query.endpoint)}\` | ${filter} | ${cell(params)} | ${formatInterval(
-        query.refetch,
-      )} | ${query.httpCount ?? 1} 支${query.conditional ? '（條件性）' : ''} | ${origin} |`,
+      `| **${id}** | \`${cell(query.endpoint)}\` | ${filter} | ${cell(params)} | ` +
+        `${formatInterval(query.refetch, locale)} | ${count} | ${origin} |`,
     );
   }
 
   return lines;
 }
 
-function renderQueryNotes(page: FieldMapPage): string[] {
+function renderQueryNotes(page: FieldMapPage, locale: Locale): string[] {
   const noted = Object.entries(page.queries).filter(([, query]) => query.note || query.filterNote);
   if (noted.length === 0) return [];
 
   return [
     '',
-    '**查詢註記**',
+    locale.md.queryNotesHeading,
     '',
     ...noted.map(([id, query]) =>
       [
-        `- **${id}**：`,
-        query.filterNote ? `**篩選提醒：**${query.filterNote}` : '',
+        locale.md.queryNoteItem(id),
+        query.filterNote ? locale.md.filterNoteLabel(query.filterNote) : '',
         query.note ?? '',
       ]
         .filter(Boolean)
@@ -99,7 +94,7 @@ function renderQueryNotes(page: FieldMapPage): string[] {
  * 只有在「每一支查詢都有、且條件完全相同」時才敢寫「全部查詢的」；否則逐支列出。
  * 一律當成共通條件會謊報：多數頁面只有部分查詢帶條件。
  */
-function renderEnabledWhen(page: FieldMapPage): string[] {
+function renderEnabledWhen(page: FieldMapPage, locale: Locale): string[] {
   const entries = Object.entries(page.queries).filter(([, query]) => query.enabledWhen);
   if (entries.length === 0) return [];
 
@@ -107,65 +102,63 @@ function renderEnabledWhen(page: FieldMapPage): string[] {
   const everyQuery = entries.length === Object.keys(page.queries).length;
 
   if (everyQuery && values.size === 1) {
-    return ['', `> 全部查詢的 \`enabledWhen\`：${[...values][0]}——不成立時查詢停用。`];
+    return ['', locale.md.enabledWhenAll(String([...values][0]))];
   }
 
   return [
     '',
-    '> `enabledWhen`（不成立時該支查詢停用）：',
-    ...entries.map(([id, query]) => `> - **${id}**：${query.enabledWhen}`),
+    locale.md.enabledWhenHeading,
+    ...entries.map(([id, query]) => locale.md.enabledWhenItem(id, String(query.enabledWhen))),
   ];
 }
 
-function renderSection(section: Section, index: number): string[] {
+function renderSection(section: Section, index: number, locale: Locale): string[] {
   const meta = Object.entries(section.meta ?? {})
-    .map(([key, value]) => `${key} ${value}`)
-    .join(' ・ ');
+    .map(([key, value]) => locale.md.metaPair(key, value))
+    .join(locale.md.join.meta);
 
   const lines = [
-    `## ${index + 1}. ${section.title} \`${section.key}\``,
+    locale.md.sectionHeading(index + 1, section.title, section.key),
     '',
-    `${SECTION_KIND_LABELS[section.kind]}${meta ? ' ・ ' + meta : ''}`,
+    locale.md.sectionMeta(locale.sectionKind[section.kind], meta),
   ];
 
   if (section.emptyRule) {
-    lines.push('', `**空狀態**：${section.emptyRule}`);
+    lines.push('', locale.md.emptyRule(section.emptyRule));
   }
 
-  lines.push(
-    '',
-    '| UI 欄位 | 查詢 | response 欄位 | 取得方式 | 顯示層 |',
-    '| ------- | ---- | ------------- | -------- | ------ |',
-  );
+  lines.push('', ...locale.md.fieldTableHead);
 
   for (const field of section.fields) {
-    const resp = field.resp === '—' ? '—' : `\`${cell(field.resp)}\``;
+    const resp =
+      field.resp === locale.md.placeholder ? locale.md.placeholder : `\`${cell(field.resp)}\``;
     lines.push(
-      `| ${cell(field.label)}${flagLabel(field)} | ${queryLabel(field)} | ${resp} | ` +
-        `**${SOURCE_LABELS[field.source]}**：${cell(field.how)} | ${cell(field.display)} |`,
+      `| ${cell(field.label)}${flagLabel(field, locale)} | ${queryLabel(field, locale)} | ` +
+        `${resp} | ${locale.md.fieldRow(locale.source[field.source], cell(field.how))} | ` +
+        `${cell(field.display)} |`,
     );
   }
 
   const withChecks = section.fields.filter((field) => field.checks?.length);
   if (withChecks.length > 0) {
-    lines.push('', '**驗證檢查點**', '');
+    lines.push('', locale.md.checksHeading, '');
     for (const field of withChecks) {
-      lines.push(`- **${field.label}**`);
+      lines.push(locale.md.checkGroup(field.label));
       for (const check of field.checks ?? []) {
-        lines.push(`  - \`${cell(check.given)}\` → ${cell(check.expect)}`);
+        lines.push(locale.md.checkItem(cell(check.given), cell(check.expect)));
       }
     }
   }
 
   const noted = section.fields.filter((field) => field.note || field.flags?.length);
   if (noted.length > 0) {
-    lines.push('', '**欄位註記**', '');
+    lines.push('', locale.md.fieldNotesHeading, '');
     for (const field of noted) {
       const flags = (field.flags ?? [])
-        .map((flag) => `${FLAG_META[flag].icon} ${FLAG_META[flag].label}`)
-        .join('；');
-      const parts = [flags, field.note].filter(Boolean).join(' —— ');
-      lines.push(`- **${field.label}**：${parts}`);
+        .map((flag) => locale.md.flagWithLabel(locale.flag[flag].icon, locale.flag[flag].label))
+        .join(locale.md.join.flags);
+      const parts = [flags, field.note].filter(Boolean).join(locale.md.join.flagAndNote);
+      lines.push(locale.md.fieldNote(field.label, parts));
     }
   }
 
@@ -173,40 +166,41 @@ function renderSection(section: Section, index: number): string[] {
 }
 
 /** 依 source 分兩欄：後端算好的（改不了）vs 前端算的（改得了）。 */
-function renderSourceSummary(page: FieldMapPage, stats: FieldMapStats): string[] {
+function renderSourceSummary(page: FieldMapPage, stats: FieldMapStats, locale: Locale): string[] {
   const backendKinds = new Set(['backend-agg', 'direct']);
-  const rows: Array<{ backend: string; frontend: string }> = [];
-
   const backend: string[] = [];
   const frontend: string[] = [];
 
   for (const section of page.sections) {
     for (const field of section.fields) {
-      const entry = `${section.title}・${field.label}（\`${cell(field.resp)}\`）`;
+      const entry = locale.md.summaryEntry(section.title, field.label, cell(field.resp));
       if (backendKinds.has(field.source)) backend.push(entry);
       else frontend.push(entry);
     }
   }
 
+  const rows: Array<{ backend: string; frontend: string }> = [];
   const rowCount = Math.max(backend.length, frontend.length);
   for (let i = 0; i < rowCount; i += 1) {
-    rows.push({ backend: backend[i] ?? '—', frontend: frontend[i] ?? '—' });
+    rows.push({
+      backend: backend[i] ?? locale.md.placeholder,
+      frontend: frontend[i] ?? locale.md.placeholder,
+    });
   }
 
   const counts = Object.entries(stats.bySource)
     .filter(([, count]) => count > 0)
-    .map(([kind, count]) => `${SOURCE_LABELS[kind as keyof typeof SOURCE_LABELS]} ${count}`)
-    .join(' ・ ');
+    .map(([kind, count]) => locale.md.sourceCount(locale.source[kind as never], count))
+    .join(locale.md.sourceCountJoin);
 
   return [
-    '## 「後端算好」vs「前端算的」速查',
+    locale.md.summaryHeading,
     '',
-    '要改動取值邏輯時先看這張表——左欄改不了（要找後端），右欄改得了（在前端）。',
+    locale.md.summaryLead,
     '',
-    `欄位分佈：${counts}`,
+    locale.md.summaryDistribution(counts),
     '',
-    '| 後端算好、前端直取 | 前端自己算 |',
-    '| ------------------ | ---------- |',
+    ...locale.md.summaryTableHead,
     ...rows.map((row) => `| ${row.backend} | ${row.frontend} |`),
   ];
 }
@@ -216,62 +210,60 @@ export function renderMarkdown(
   stats: FieldMapStats,
   ctx: RenderContext,
 ): string {
+  const { locale } = ctx;
+  const { md } = locale;
+
   const lines: string[] = [
     page.route === undefined
-      ? `# ${page.title} 欄位對照`
-      : `# ${page.title}（\`${page.route}\`）欄位對照`,
+      ? md.titleWithoutRoute(page.title)
+      : md.titleWithRoute(page.title, page.route),
     '',
-    `> ⚠️ **本檔由 \`${ctx.command}\` 從 \`${ctx.dataDir}/${page.page}.json\` 生成，請勿手改**`,
-    `> ——任何手動編輯都會在下次重跑時被覆蓋。要改內容請改 JSON 後重跑。`,
+    md.generatedBy(ctx.command, `${ctx.dataDir}/${page.page}.json`),
+    md.generatedByCont,
     '>',
-    `> **人要驗收請開 [\`${page.page}.html\`](./${page.page}.html)**（可勾選、可篩選、可匯出問題清單）；`,
-    '> 本 markdown 是給 LLM 讀與 `git diff` 審閱用的。',
+    md.openHtml(page.page),
+    md.audienceNote,
     '>',
-    '> 跨頁通用規則（回應 envelope、空值退場、數字格式、刷新機制等）見同目錄',
-    '> [README.md](./README.md)，本檔不重述。',
+    ...md.sharedRules,
     '>',
-    `> 盤點日期：**${page.auditedAt}**（「對過程式碼」的日期，不是「驗收過」的日期）`,
+    md.auditedAt(page.auditedAt),
     '>',
-    '> 盤點時讀過的原始碼：',
-    ...page.sources.map((source) => `> - \`${source}\``),
+    md.sourcesHeading,
+    ...page.sources.map((source) => md.sourceItem(source)),
     '',
     '---',
     '',
-    '## 概況',
+    md.overviewHeading,
     '',
-    `- **${stats.sectionCount} 個區塊、${stats.fieldCount} 個欄位**，由 **${stats.queryCount} 個查詢**組成`,
-    `- 其中 **${stats.pollingQueryCount} 個查詢參與輪詢**，單次全量刷新 = **${stats.pollingHttpCount} 支 HTTP**`,
-    `- 輪詢負載：每小時 **${formatRate(stats.perHour)} 支**${intervalBreakdown(stats)}`,
-    `- **Network 對帳基準：進頁應出現 ${stats.baseHttpCount} 支 request**` +
-      (stats.conditionalHttpCount
-        ? `，另有 ${stats.conditionalHttpCount} 支條件性請求（卡片隱藏時不會出現）`
-        : ''),
+    md.overviewCounts(stats.sectionCount, stats.fieldCount, stats.queryCount),
+    md.overviewPolling(stats.pollingQueryCount, stats.pollingHttpCount),
+    md.overviewLoad(formatRate(stats.perHour), intervalBreakdown(stats, locale)),
+    md.overviewBaseline(stats.baseHttpCount, stats.conditionalHttpCount),
     '',
-    '> 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。',
-    '> 若分頁常駐且背景仍刷新，實際負載需再乘上同時在線的分頁數。',
+    ...md.overviewDerivedNote,
     '',
     '---',
     '',
-    '## 查詢清單',
+    md.queriesHeading,
     '',
-    ...renderQueryTable(page),
-    ...renderQueryNotes(page),
-    ...renderEnabledWhen(page),
+    ...renderQueryTable(page, locale),
+    ...renderQueryNotes(page, locale),
+    ...renderEnabledWhen(page, locale),
     '',
     '---',
     '',
   ];
 
   page.sections.forEach((section, index) => {
-    lines.push(...renderSection(section, index), '', '---', '');
+    lines.push(...renderSection(section, index, locale), '', '---', '');
   });
 
-  lines.push(...renderSourceSummary(page, stats), '');
+  lines.push(...renderSourceSummary(page, stats, locale), '');
 
   if (page.notes?.length) {
-    lines.push('---', '', '## 已知落差 / 注意事項', '');
+    lines.push('---', '', md.notesHeading, '');
     page.notes.forEach((note, index) => {
-      lines.push(`${index + 1}. **${note.title}**`, '', `   ${note.body}`, '');
+      lines.push(md.noteItem(index + 1, note.title), '', `   ${note.body}`, '');
     });
   }
 

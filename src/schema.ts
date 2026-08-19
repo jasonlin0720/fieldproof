@@ -168,27 +168,3 @@ export type Refetch = z.infer<typeof refetchSchema>;
 export type Section = z.infer<typeof sectionSchema>;
 export type SectionKind = z.infer<typeof sectionKindSchema>;
 export type SourceKind = z.infer<typeof sourceKindSchema>;
-
-/** 各 source 的顯示名（HTML chip 與 markdown 表格共用）。 */
-export const SOURCE_LABELS: Record<SourceKind, string> = {
-  direct: 'API 直取',
-  'backend-agg': '後端合計',
-  'fe-pick': '前端取某筆',
-  'fe-agg': '前端聚合',
-  'fe-derive': '前端換算',
-  'fe-const': '前端硬編',
-};
-
-/** 非卡片來源的顯示名（Network 對帳清單用）。 */
-export const ORIGIN_LABELS: Record<Origin, string> = {
-  card: '卡片資料',
-  component: '共用元件自打',
-  layout: '版面層',
-};
-
-/** 各 flag 的顯示名與說明。 */
-export const FLAG_META: Record<Flag, { icon: string; label: string }> = {
-  exception: { icon: '⚠', label: '違反全站慣例的刻意設計' },
-  'backend-pending': { icon: '🕓', label: '後端尚在研議 / 目前為權宜解' },
-  fragile: { icon: '⚡', label: '易碎：依賴字串格式比對等' },
-};

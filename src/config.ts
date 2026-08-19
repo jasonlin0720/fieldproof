@@ -9,6 +9,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { z } from 'zod';
 
+import type { Locale } from './locales/index.js';
+
+import { DEFAULT_LOCALE } from './locales/index.js';
+
 export const CONFIG_FILENAME = 'fieldproof.config.json';
 
 export const outputKindSchema = z.enum(['html', 'markdown', 'index']);
@@ -50,6 +54,7 @@ export interface RenderContext {
   command: string;
   /** 資料目錄的顯示路徑，如 `docs/fields/data` */
   dataDir: string;
+  locale: Locale;
 }
 
 /** 自 `from` 向上探尋設定檔；找不到回傳 undefined。 */
@@ -73,20 +78,22 @@ export function loadConfig(explicitPath: string | undefined, cwd: string): Resol
   const path = explicitPath ? resolve(cwd, explicitPath) : findConfig(cwd);
 
   if (path === undefined) {
-    throw new Error(
-      `找不到 ${CONFIG_FILENAME}（自 ${cwd} 向上探尋）。\n` +
-        `請於專案根目錄建立，或以 --config <path> 指定。`,
-    );
+    throw new Error(DEFAULT_LOCALE.errors.configNotFound(CONFIG_FILENAME, cwd));
   }
   if (!existsSync(path)) {
-    throw new Error(`設定檔不存在：${path}`);
+    throw new Error(DEFAULT_LOCALE.errors.configMissing(path));
   }
 
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(path, 'utf8'));
   } catch (error) {
-    throw new Error(`${path} 不是合法的 JSON：${error instanceof Error ? error.message : error}`);
+    throw new Error(
+      DEFAULT_LOCALE.errors.configNotJson(
+        path,
+        error instanceof Error ? error.message : String(error),
+      ),
+    );
   }
 
   const parsed = configSchema.safeParse(raw);
@@ -94,7 +101,7 @@ export function loadConfig(explicitPath: string | undefined, cwd: string): Resol
     const detail = parsed.error.issues
       .map((issue) => `  ${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('\n');
-    throw new Error(`${path} 設定格式不符：\n${detail}`);
+    throw new Error(DEFAULT_LOCALE.errors.configInvalid(path, detail));
   }
 
   const rootDir = dirname(path);

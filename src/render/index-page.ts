@@ -11,7 +11,7 @@ import type { RenderContext } from '../config.js';
 import type { FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
-import { formatRate } from '../format.js';
+import { fmt, formatRate } from '../format.js';
 
 const ASSETS_DIR = fileURLToPath(new URL('../assets/', import.meta.url));
 
@@ -27,14 +27,19 @@ export function renderIndex(
   entries: Array<{ page: FieldMapPage; stats: FieldMapStats }>,
   ctx: RenderContext,
 ): string {
+  const { ui } = ctx.locale;
   const css = readFileSync(join(ASSETS_DIR, 'app.css'), 'utf8');
+  const indexSource = fmt(ui.indexSource, {
+    command: `<code class="resp">${escapeHtml(ctx.command)}</code>`,
+    dataDir: `<code class="resp">${escapeHtml(ctx.dataDir)}</code>`,
+  });
 
   const rows = entries
     .map(
       ({ page, stats }) => `
           <tr class="row">
             <td><a class="index__link" href="./${page.page}.html">${escapeHtml(page.title)}</a></td>
-            <td><span class="resp">${page.route === undefined ? '—' : escapeHtml(page.route)}</span></td>
+            <td><span class="resp">${page.route === undefined ? ctx.locale.md.placeholder : escapeHtml(page.route)}</span></td>
             <td>${stats.sectionCount}</td>
             <td>${stats.fieldCount}</td>
             <td>${stats.queryCount}（${stats.pollingQueryCount} 輪詢）</td>
@@ -46,13 +51,13 @@ export function renderIndex(
     .join('');
 
   return `<!doctype html>
-<html lang="zh-Hant">
+<html lang="${ctx.locale.htmlLang}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>欄位對照</title>
+    <title>${escapeHtml(ui.indexTitle)}</title>
     <link rel="icon" href="data:," />
-    <!-- 本檔由 \`${ctx.command}\` 生成，請勿手改。 -->
+    <!-- ${fmt(ui.generatedComment, { command: ctx.command, dataPath: ctx.dataDir })} -->
     <style>
 ${css}
       .index {
@@ -90,11 +95,10 @@ ${css}
   </head>
   <body>
     <main class="index">
-      <h1>欄位對照</h1>
+      <h1>${escapeHtml(ui.indexTitle)}</h1>
       <p>
-        每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。<br />
-        資料來源為 <code class="resp">${escapeHtml(ctx.dataDir)}/*.json</code>，本頁與各頁 HTML / markdown
-        皆由 <code class="resp">${escapeHtml(ctx.command)}</code> 生成。通用規則見
+        ${escapeHtml(ui.indexLead)}<br />
+        ${indexSource} ${escapeHtml(ui.indexRules)}
         <a class="index__link" href="./README.md">README.md</a>。
       </p>
       <table>
