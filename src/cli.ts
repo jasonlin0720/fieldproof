@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from './build.js';
 import { loadConfig } from './config.js';
 import { formatRate } from './format.js';
-import { DEFAULT_LOCALE } from './locales/index.js';
+import { DEFAULT_LOCALE, getLocale } from './locales/index.js';
 import { installSkill, resolveSkillDest, SKILL_SOURCE } from './skill.js';
 
 const USAGE = DEFAULT_LOCALE.cli.usage;
@@ -115,24 +115,26 @@ function main(): void {
   }
 
   const config = loadConfig(args.config, process.cwd());
+  // 讀完設定才知道語系。在這之前（參數解析、找不到設定檔）只能用 DEFAULT_LOCALE。
+  const { cli } = getLocale(config.locale);
   const result = build(config, { check: args.check });
 
   if (args.check) {
     if (result.stale.length > 0) {
       throw new Error(
-        DEFAULT_LOCALE.cli.outOfSync(
+        cli.outOfSync(
           config.command,
           result.stale.map((out) => out.path),
         ),
       );
     }
-    console.log(DEFAULT_LOCALE.cli.inSync(result.outputs.length));
+    console.log(cli.inSync(result.outputs.length));
     return;
   }
 
   for (const { page, stats } of result.entries) {
     console.log(
-      DEFAULT_LOCALE.cli.pageSummary(
+      cli.pageSummary(
         page.page,
         stats.queryCount,
         stats.pollingQueryCount,
@@ -140,7 +142,7 @@ function main(): void {
         stats.fieldCount,
       ),
     );
-    console.log(DEFAULT_LOCALE.cli.loadSummary(stats.pollingHttpCount, formatRate(stats.perHour)));
+    console.log(cli.loadSummary(stats.pollingHttpCount, formatRate(stats.perHour)));
   }
   for (const out of result.outputs) console.log(`  → ${out.path}`);
 }
