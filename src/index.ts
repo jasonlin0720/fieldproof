@@ -10,6 +10,9 @@ export type { BuildOutput, BuildResult } from './build.js';
 export { CONFIG_FILENAME, configSchema, findConfig, loadConfig } from './config.js';
 export type { FieldproofConfig, OutputKind, RenderContext, ResolvedConfig } from './config.js';
 
+export { findDrift } from './drift.js';
+export type { DriftReport } from './drift.js';
+
 export { fieldMapPageSchema } from './schema.js';
 export type {
   Field,

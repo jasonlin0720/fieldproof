@@ -25,6 +25,11 @@ never have to re-derive the claim; someone already walked the chain and wrote it
 Nothing is submitted anywhere. Your marks live in the browser, and the "punch list" you export
 at the end is a block of Markdown on your clipboard.
 
+One caveat before you start: the JSON is a claim someone made on the day in `auditedAt`, and the
+code has moved since. `fieldproof build` prints the pages whose `sources` were committed after
+that date — if the page you are about to review is on that list, refresh the data file first.
+Ticking fields off against a stale claim is worse than not reviewing at all.
+
 ## Reading a row
 
 | Column                       | What it tells you                                                                                               |

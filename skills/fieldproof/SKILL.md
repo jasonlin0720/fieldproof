@@ -126,8 +126,10 @@ summary it prints — an unexpectedly large "per hour" number is usually a real 
 
 ## Flow B: refresh an existing file
 
-fieldproof deliberately does not detect whether its JSON still matches the code — that is your
-job, and the file gives you what you need to do it.
+fieldproof does not decide whether its JSON still matches the code — that is your job, and the
+file gives you what you need to do it. It relays exactly one fact from git: `fieldproof build`
+prints the pages whose `sources` were committed after their `auditedAt`. That names the pages
+worth re-reading. It says nothing about whether the behaviour actually changed.
 
 1. Read the existing data file. Note `auditedAt` and `sources`.
 2. Diff those source files since that date (`git log --since=<auditedAt> -- <sources>`), and

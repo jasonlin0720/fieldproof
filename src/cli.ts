@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 import { build } from './build.js';
 import { loadConfig } from './config.js';
+import { findDrift } from './drift.js';
 import { formatRate } from './format.js';
 import { DEFAULT_LOCALE, getLocale } from './locales/index.js';
 import { installSkill, resolveSkillDest, SKILL_SOURCE } from './skill.js';
@@ -119,6 +120,23 @@ function main(): void {
   const { cli } = getLocale(config.locale);
   const result = build(config, { check: args.check });
 
+  /**
+   * 資料檔是否該重新盤點的提示。刻意只是提示：它轉述的是 git 的事實，不是內容比對，
+   * 誤報（純格式化的 commit）是預期的，故不影響 `--check` 的退出碼。
+   */
+  const reportDrift = (): void => {
+    const drifted = findDrift(
+      result.entries.map(({ page }) => page),
+      config.rootDir,
+    );
+    if (drifted.length === 0) return;
+
+    console.log(`\n${cli.driftHeader}`);
+    for (const { page, since, sources } of drifted) {
+      console.log(cli.driftPage(page, since, sources));
+    }
+  };
+
   if (args.check) {
     const problems = [
       result.stale.length > 0
@@ -130,8 +148,12 @@ function main(): void {
       result.orphans.length > 0 ? cli.orphans(result.orphans) : '',
     ].filter(Boolean);
 
-    if (problems.length > 0) throw new Error(problems.join('\n\n'));
+    if (problems.length > 0) {
+      reportDrift();
+      throw new Error(problems.join('\n\n'));
+    }
     console.log(cli.inSync(result.outputs.length));
+    reportDrift();
     return;
   }
 
@@ -149,6 +171,7 @@ function main(): void {
   }
   for (const out of result.outputs) console.log(`  → ${out.path}`);
   if (result.orphans.length > 0) console.log(`\n${cli.orphans(result.orphans)}`);
+  reportDrift();
 }
 
 /** 僅在被直接執行時跑；被 import（測試）時只取用其中的純函式。 */

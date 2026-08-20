@@ -77,6 +77,12 @@ skill options:
       'These generated files no longer have a data file. Delete them ' +
       '(this command will not — they are probably committed):\n' +
       paths.map((p) => `  ${p}`).join('\n'),
+    driftHeader:
+      'These pages list source files that were committed after the page was audited, so the ' +
+      'data file may no longer match the code. Consider re-auditing.\n' +
+      '(This only relays what git knows — it does not check the content. It does not affect --check.)',
+    driftPage: (page, since, sources) =>
+      `  ${page} (audited ${since}):\n` + sources.map((p) => `    ${p}`).join('\n'),
     outOfSync: (command, paths) =>
       `These generated files are out of sync with the data. Run \`${command}\`:\n` +
       paths.map((p) => `  ${p}`).join('\n'),

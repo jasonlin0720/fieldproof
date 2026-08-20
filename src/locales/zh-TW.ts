@@ -71,6 +71,11 @@ skill 選項：
     orphans: (paths: string[]) =>
       `以下生成物已無對應的資料檔，請刪除（本指令不會自動刪，它們多半已在 git 裡）：\n` +
       paths.map((p) => `  ${p}`).join('\n'),
+    driftHeader:
+      '以下頁面的來源檔在盤點之後被 commit 動過，資料檔可能已與程式碼脫節，建議重新盤點。\n' +
+      '（本工具不判斷內容是否真的變了，只轉述 git 的事實；此提示不影響 --check 的結果。）',
+    driftPage: (page: string, since: string, sources: string[]) =>
+      `  ${page}（盤點於 ${since}）：\n` + sources.map((p) => `    ${p}`).join('\n'),
     outOfSync: (command: string, paths: string[]) =>
       `以下生成物與資料不同步，請執行 \`${command}\`：\n${paths.map((p) => `  ${p}`).join('\n')}`,
     pageSummary: (
