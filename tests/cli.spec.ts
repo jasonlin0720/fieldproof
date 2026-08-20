@@ -16,6 +16,8 @@ describe('parseArgs', () => {
       command: undefined,
       config: undefined,
       help: false,
+      install: false,
+      to: undefined,
     });
   });
 
@@ -32,11 +34,11 @@ describe('parseArgs', () => {
   });
 
   it('--config 後面沒接值時報錯', () => {
-    expect(() => parseArgs(['build', '--config'])).toThrow(/要接設定檔路徑/);
+    expect(() => parseArgs(['build', '--config'])).toThrow(/--config 後面要接一個值/);
   });
 
   it('--config 後面接的是另一個選項時報錯', () => {
-    expect(() => parseArgs(['build', '--config', '--check'])).toThrow(/要接設定檔路徑/);
+    expect(() => parseArgs(['build', '--config', '--check'])).toThrow(/--config 後面要接一個值/);
   });
 
   it('認得 -h 與 --help', () => {
@@ -58,6 +60,33 @@ describe('parseArgs', () => {
       command: 'build',
       config: 'x.json',
       help: false,
+      install: false,
+      to: undefined,
     });
+  });
+
+  it('認得 skill 指令與其選項', () => {
+    expect(parseArgs(['skill', '--install', '--to', 'a/b'])).toEqual({
+      check: false,
+      command: 'skill',
+      config: undefined,
+      help: false,
+      install: true,
+      to: 'a/b',
+    });
+  });
+
+  it('--to 後面沒接值時報錯', () => {
+    expect(() => parseArgs(['skill', '--to'])).toThrow(/--to 後面要接一個值/);
+  });
+
+  it('選項存在但不屬於這個指令時報錯，而非靜默忽略', () => {
+    // `build --install` 靜默通過的話，使用者會以為 skill 裝好了，其實只是重跑了建置。
+    expect(() => parseArgs(['build', '--install'])).toThrow(/--install 不是 build 的選項/);
+    expect(() => parseArgs(['skill', '--check'])).toThrow(/--check 不是 skill 的選項/);
+  });
+
+  it('未指定指令時不套用選項歸屬檢查——單獨 --help 仍可用', () => {
+    expect(parseArgs(['--help']).help).toBe(true);
   });
 });

@@ -26,7 +26,11 @@
     "fieldproof": "./dist/cli.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "skills",
+    "docs",
+    "CHANGELOG.md",
+    "AGENTS.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cp -R src/assets dist/assets",

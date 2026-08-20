@@ -54,10 +54,16 @@ export const zhTW = {
   cli: {
     usage: `用法：
   fieldproof build [選項]        驗證資料並生成 HTML / markdown / index
+  fieldproof skill [--install]   顯示 / 安裝隨套件發佈的 skill
 
-選項：
+build 選項：
   --check                       只驗證並比對現有生成物；不同步則非零退出
   --config <path>               指定設定檔（預設自 cwd 向上探尋 fieldproof.config.json）
+
+skill 選項：
+  --install                     實際複製；未指定時只顯示來源與目的地
+  --to <dir>                    安裝位置（預設 .claude/skills/fieldproof）
+
   -h, --help                    顯示本說明
 `,
     failHeader: '\n✖ fieldproof 失敗\n',
@@ -76,7 +82,12 @@ export const zhTW = {
     unknownOption: (arg: string) => `未知選項：${arg}`,
     unknownCommand: (arg: string) => `未知指令：${arg}`,
     extraArg: (arg: string) => `多餘的參數：${arg}`,
-    configNeedsValue: '--config 後面要接設定檔路徑',
+    optionNeedsValue: (option: string) => `${option} 後面要接一個值`,
+    optionNotForCommand: (option: string, command: string) => `${option} 不是 ${command} 的選項`,
+    skillWhere: (source: string, dest: string) =>
+      `skill 來源：${source}\n將安裝至：${dest}\n\n加上 --install 實際複製。`,
+    skillInstalled: (dest: string) =>
+      `✓ skill 已安裝至 ${dest}\n  升級 fieldproof 後重跑本指令即可更新。`,
   },
 
   errors: {
@@ -98,6 +109,8 @@ export const zhTW = {
     configMissing: (path: string) => `設定檔不存在：${path}`,
     configNotJson: (path: string, detail: string) => `${path} 不是合法的 JSON：${detail}`,
     configInvalid: (path: string, detail: string) => `${path} 設定格式不符：\n${detail}`,
+    skillSourceMissing: (dir: string) =>
+      `找不到隨套件發佈的 skill：${dir}\n這通常代表安裝不完整，請重裝 fieldproof。`,
     unknownLocale: (id: string, available: string[]) =>
       `未知的語系：${id}（可用：${available.join('、')}）`,
   },
