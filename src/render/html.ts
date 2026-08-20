@@ -11,6 +11,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { RenderContext } from '../config.js';
+
+import { GENERATED_MARKER } from '../config.js';
 import type { Field, FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
@@ -141,6 +143,7 @@ ${page.notes
     <!-- 空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求 -->
     <link rel="icon" href="data:," />
     <!--
+      ${GENERATED_MARKER}
       ${fmt(ui.generatedComment, { command: ctx.command, dataPath: `${ctx.dataDir}/${page.page}.json` })}
     -->
     <style>

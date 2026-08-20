@@ -5,10 +5,12 @@
  * `--check` 的正確性完全依賴此性質。
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import type { RenderContext, ResolvedConfig } from './config.js';
+
+import { GENERATED_MARKER } from './config.js';
 import type { Locale } from './locales/index.js';
 
 import { renderHtml } from './render/html.js';
@@ -25,6 +27,8 @@ export interface BuildOutput {
 
 export interface BuildResult {
   entries: Array<{ page: FieldMapPage; stats: FieldMapStats }>;
+  /** outDir 裡由本工具產出、但已無對應資料檔的檔案 */
+  orphans: string[];
   outputs: BuildOutput[];
   /** `--check` 模式下與磁碟不同步的生成物；非 check 模式為空陣列 */
   stale: BuildOutput[];
@@ -120,6 +124,26 @@ function assertQueryRefs(file: string, page: FieldMapPage, locale: Locale): void
   }
 }
 
+/**
+ * outDir 裡看起來是本工具產出、但這次不會再產出的檔案。
+ *
+ * 資料檔刪掉之後，舊的生成物會原地留著，而且 `--check` 不會抱怨——有人開了那份 HTML
+ * 就會對著一個已經不存在的頁面逐欄打勾。
+ *
+ * 只認帶有 `GENERATED_MARKER` 的檔案：使用者放在同一個 outDir 的文件不該被我們認領。
+ */
+function findOrphans(outDirAbs: string, outputs: BuildOutput[]): string[] {
+  if (!existsSync(outDirAbs)) return [];
+
+  const expected = new Set(outputs.map((out) => out.path));
+  return readdirSync(outDirAbs)
+    .filter((name) => name.endsWith('.html') || name.endsWith('.md'))
+    .map((name) => join(outDirAbs, name))
+    .filter((path) => !expected.has(path))
+    .filter((path) => readFileSync(path, 'utf8').includes(GENERATED_MARKER))
+    .sort();
+}
+
 /** 比對將產生的內容與磁碟現有檔案是否一致。 */
 function isStale(path: string, content: string): boolean {
   if (!existsSync(path)) return true;
@@ -164,14 +188,21 @@ export function build(config: ResolvedConfig, options: { check?: boolean } = {})
     });
   }
 
+  const orphans = findOrphans(config.outDirAbs, outputs);
+
   if (options.check) {
     return {
       entries,
+      orphans,
       outputs,
       stale: outputs.filter((out) => isStale(out.path, out.content)),
     };
   }
 
+  // 輸出目錄多半尚未存在（消費端第一次跑、或 outDir 被 .gitignore 掉）。
+  mkdirSync(config.outDirAbs, { recursive: true });
   for (const out of outputs) writeFileSync(out.path, out.content, 'utf8');
-  return { entries, outputs, stale: [] };
+
+  // 刻意不自動刪除：那些檔案多半已經 commit 進 git，該不該刪是使用者的決定。
+  return { entries, orphans, outputs, stale: [] };
 }

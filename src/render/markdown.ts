@@ -6,6 +6,8 @@
  */
 
 import type { RenderContext } from '../config.js';
+
+import { GENERATED_MARKER } from '../config.js';
 import type { Locale } from '../locales/index.js';
 import type { Field, FieldMapPage, Section } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
@@ -195,6 +197,8 @@ export function renderMarkdown(
   const { md } = locale;
 
   const lines: string[] = [
+    `<!-- ${GENERATED_MARKER} -->`,
+    '',
     page.route === undefined
       ? md.titleWithoutRoute(page.title)
       : md.titleWithRoute(page.title, page.route),

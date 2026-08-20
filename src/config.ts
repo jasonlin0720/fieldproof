@@ -58,6 +58,15 @@ export interface ResolvedConfig extends FieldproofConfig {
  * 生成物會告訴讀者「這是生成的、要改請改哪裡、怎麼重生」，這些字串因專案而異，
  * 故由此傳入而非寫死在 renderer 裡。
  */
+/**
+ * 每份生成物都帶的辨識標記。
+ *
+ * 清理孤兒（資料檔刪了、生成物還在）時，必須分辨得出哪些檔案是本工具產出的——
+ * 使用者放在同一個 outDir 的文件不該被我們認領。標記為固定字串而非語系文字，
+ * 換語系或改 `command` 都不影響辨識。
+ */
+export const GENERATED_MARKER = 'fieldproof:generated';
+
 export interface RenderContext {
   /** 重生指令，顯示於生成物頁首，如 `pnpm fields` */
   command: string;

@@ -8,6 +8,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { RenderContext } from '../config.js';
+
+import { GENERATED_MARKER } from '../config.js';
 import type { FieldMapPage } from '../schema.js';
 import type { FieldMapStats } from '../stats.js';
 
@@ -57,6 +59,7 @@ export function renderIndex(
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(ui.indexTitle)}</title>
     <link rel="icon" href="data:," />
+    <!-- ${GENERATED_MARKER} -->
     <!-- ${fmt(ui.generatedComment, { command: ctx.command, dataPath: ctx.dataDir })} -->
     <style>
 ${css}

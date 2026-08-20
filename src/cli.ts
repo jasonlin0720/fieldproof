@@ -120,14 +120,17 @@ function main(): void {
   const result = build(config, { check: args.check });
 
   if (args.check) {
-    if (result.stale.length > 0) {
-      throw new Error(
-        cli.outOfSync(
-          config.command,
-          result.stale.map((out) => out.path),
-        ),
-      );
-    }
+    const problems = [
+      result.stale.length > 0
+        ? cli.outOfSync(
+            config.command,
+            result.stale.map((out) => out.path),
+          )
+        : '',
+      result.orphans.length > 0 ? cli.orphans(result.orphans) : '',
+    ].filter(Boolean);
+
+    if (problems.length > 0) throw new Error(problems.join('\n\n'));
     console.log(cli.inSync(result.outputs.length));
     return;
   }
@@ -145,6 +148,7 @@ function main(): void {
     console.log(cli.loadSummary(stats.pollingHttpCount, formatRate(stats.perHour)));
   }
   for (const out of result.outputs) console.log(`  → ${out.path}`);
+  if (result.orphans.length > 0) console.log(`\n${cli.orphans(result.orphans)}`);
 }
 
 /** 僅在被直接執行時跑；被 import（測試）時只取用其中的純函式。 */

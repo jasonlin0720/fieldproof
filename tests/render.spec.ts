@@ -237,7 +237,8 @@ describe('可選欄位的退場', () => {
     delete page.route;
     const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
 
-    expect(md.split('\n')[0]).toBe('# 示範頁 欄位對照');
+    // 首行是生成標記，標題在其後。
+    expect(md.split('\n').find((line) => line.startsWith('#'))).toBe('# 示範頁 欄位對照');
   });
 
   it('省略 route 時，HTML 工具列不留孤立的分隔點', () => {

@@ -68,6 +68,9 @@ skill 選項：
 `,
     failHeader: '\n✖ fieldproof 失敗\n',
     inSync: (n: number) => `✓ ${n} 個生成物皆與資料同步`,
+    orphans: (paths: string[]) =>
+      `以下生成物已無對應的資料檔，請刪除（本指令不會自動刪，它們多半已在 git 裡）：\n` +
+      paths.map((p) => `  ${p}`).join('\n'),
     outOfSync: (command: string, paths: string[]) =>
       `以下生成物與資料不同步，請執行 \`${command}\`：\n${paths.map((p) => `  ${p}`).join('\n')}`,
     pageSummary: (

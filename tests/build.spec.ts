@@ -5,7 +5,7 @@
  * `--check` 就會在 CI 上無故失敗，整個「生成物與資料同步」的保證隨之瓦解。
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -112,6 +112,44 @@ describe('build', () => {
     }
   });
 
+  it('輸出目錄尚未存在時自動建立——消費端第一次跑不該撞 ENOENT', () => {
+    const ws = makeWorkspace([makePage()]);
+    const outDirAbs = join(ws.dir, 'docs', 'fields');
+
+    try {
+      expect(existsSync(outDirAbs)).toBe(false);
+      build({ ...ws.config, outDir: 'docs/fields', outDirAbs });
+
+      expect(existsSync(join(outDirAbs, 'demo.html'))).toBe(true);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
+  it('check 模式不建立輸出目錄——只比對就不該有副作用', () => {
+    const ws = makeWorkspace([makePage()]);
+    const outDirAbs = join(ws.dir, 'docs', 'fields');
+
+    try {
+      build({ ...ws.config, outDir: 'docs/fields', outDirAbs }, { check: true });
+      expect(existsSync(outDirAbs)).toBe(false);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
+  it('資料檔不是合法 JSON 時，錯誤訊息指出是哪個檔', () => {
+    const ws = makeWorkspace([makePage()]);
+    try {
+      writeFileSync(join(ws.config.dataDirAbs, 'demo.json'), '{ "page": "demo",, }', 'utf8');
+
+      // 原生 SyntaxError 只有 position，不說是哪個檔——人得自己翻資料目錄找。
+      expect(() => build(ws.config)).toThrow(/demo\.json/);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
   it('多頁時，index 收錄每一頁', () => {
     const second = makePage();
     second.page = 'another';
@@ -124,6 +162,76 @@ describe('build', () => {
 
       expect(index).toContain('./demo.html');
       expect(index).toContain('./another.html');
+    } finally {
+      ws.cleanup();
+    }
+  });
+});
+
+describe('孤兒生成物', () => {
+  /**
+   * 資料檔刪掉之後，舊的生成物會原地留著。過去 `--check` 不會抱怨，於是有人開了那份
+   * HTML 就會對著一個已經不存在的頁面逐欄打勾。
+   */
+  function removePage(ws: ReturnType<typeof makeWorkspace>, page: string): void {
+    rmSync(join(ws.config.dataDirAbs, `${page}.json`));
+  }
+
+  it('資料檔刪掉後，舊生成物被列為孤兒', () => {
+    const second = makePage();
+    second.page = 'gone';
+    const ws = makeWorkspace([makePage(), second]);
+
+    try {
+      build(ws.config);
+      removePage(ws, 'gone');
+
+      const { orphans } = build(ws.config, { check: true });
+
+      expect(orphans).toEqual([join(ws.dir, 'gone.html'), join(ws.dir, 'gone.md')]);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
+  it('重跑 build 不會讓孤兒消失——它們多半已在 git 裡，刪不刪是使用者的決定', () => {
+    const second = makePage();
+    second.page = 'gone';
+    const ws = makeWorkspace([makePage(), second]);
+
+    try {
+      build(ws.config);
+      removePage(ws, 'gone');
+
+      const { orphans } = build(ws.config);
+
+      expect(orphans).toHaveLength(2);
+      expect(existsSync(join(ws.dir, 'gone.html'))).toBe(true);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
+  it('不認領使用者自己放在 outDir 的文件', () => {
+    // 只認帶有生成標記的檔案。少了這道，使用者手寫的 notes.md 會被說成孤兒。
+    const ws = makeWorkspace([makePage()]);
+
+    try {
+      build(ws.config);
+      writeFileSync(join(ws.dir, 'notes.md'), '# 我自己寫的\n', 'utf8');
+      writeFileSync(join(ws.dir, 'scratch.html'), '<p>手寫</p>\n', 'utf8');
+
+      expect(build(ws.config, { check: true }).orphans).toEqual([]);
+    } finally {
+      ws.cleanup();
+    }
+  });
+
+  it('一切同步時沒有孤兒', () => {
+    const ws = makeWorkspace([makePage()]);
+    try {
+      build(ws.config);
+      expect(build(ws.config, { check: true }).orphans).toEqual([]);
     } finally {
       ws.cleanup();
     }
