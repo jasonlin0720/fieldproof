@@ -117,7 +117,7 @@ export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: Render
     fmt(ui.metaAudited, { date: escapeHtml(page.auditedAt) }),
   ]
     .filter(Boolean)
-    .join(' ・ ');
+    .join(ui.joinMeta);
 
   const notes = page.notes?.length
     ? `
@@ -140,7 +140,7 @@ ${page.notes
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(fmt(ui.pageTitle, { title: page.title }))}</title>
-    <!-- 空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求 -->
+    <!-- ${ui.faviconComment} -->
     <link rel="icon" href="data:," />
     <!--
       ${GENERATED_MARKER}

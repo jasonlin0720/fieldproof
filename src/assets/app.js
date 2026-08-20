@@ -5,11 +5,14 @@
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
   const T = PAGE.ui;
 
-  /** `{name}` 佔位符代入（與產生端 format.ts 的 fmt 同規則）。 */
+  /** `{name}` 與 `{name|單數|複數}` 代入（與產生端 format.ts 的 fmt 同規則）。 */
+  const SLOT = /\{(\w+)(?:\|([^|{}]*)\|([^|{}]*))?\}/g;
   const t = (key, vars) =>
-    (T[key] || '').replace(/\{(\w+)\}/g, (_, k) =>
-      vars && Object.hasOwn(vars, k) ? String(vars[k]) : '',
-    );
+    (T[key] || '').replace(SLOT, (_, k, one, other) => {
+      if (!vars || !Object.hasOwn(vars, k)) return '';
+      if (one === undefined || other === undefined) return String(vars[k]);
+      return Number(vars[k]) === 1 ? one : other;
+    });
 
   /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
   const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
@@ -408,9 +411,9 @@
     return (
       `<tr class="group"><td colspan="9">` +
       `<div class="group__head"><span class="group__title">${esc(group.key)}</span>` +
-      `<span class="group__key">${esc(query.endpoint)} ・ ${esc(PAGE.refetchLabels[group.key])}${
+      `<span class="group__key">${esc(query.endpoint)}${T.joinMeta}${esc(PAGE.refetchLabels[group.key])}${
         query.httpCount && query.httpCount > 1
-          ? ` ・ ${esc(t('detailConcurrent', { n: query.httpCount }))}`
+          ? `${T.joinMeta}${esc(t('detailConcurrent', { n: query.httpCount }))}`
           : ''
       }</span>` +
       `<span class="group__meta" title="${esc(params)}">` +
@@ -543,7 +546,7 @@
     const problems = ROWS.filter((row) => hasProblem(row.id));
     const done = ROWS.filter((row) => isVerified(row.id)).length;
     const lines = [
-      `## ${PAGE.title} 驗收問題清單`,
+      t('reportHeading', { title: PAGE.title }),
       '',
       t('reportSummary', { done, problems: problems.length, total: ROWS.length }),
       '',
@@ -561,22 +564,22 @@
         m.display === 'ng' ? T.sideDisplay : null,
       ]
         .filter(Boolean)
-        .join('、');
-      lines.push(`### ${row.section.title} · ${row.field.label}`);
+        .join(T.joinList);
+      lines.push(t('reportSection', { field: row.field.label, section: row.section.title }));
       for (const id of row.queryIds) {
         const query = PAGE.queries[id];
         const params = Object.entries(query.params)
           .map(([k, v]) => `${k}=${v}`)
           .join(' · ');
-        lines.push(`- 查詢：${id} \`${query.endpoint}\`（${params}）`);
+        lines.push(t('reportQuery', { endpoint: query.endpoint, id, params }));
       }
       if (!row.queryIds.length) lines.push(T.reportQueryNone);
-      lines.push(`- response：\`${row.field.resp}\``);
+      lines.push(t('reportResp', { value: row.field.resp }));
       lines.push(
         t('reportExpectValue', { how: row.field.how, source: SOURCE_LABELS[row.field.source] }),
       );
       lines.push(t('reportExpectDisplay', { display: row.field.display }));
-      if (m.actual) lines.push(`- 畫面實際值：\`${m.actual}\``);
+      if (m.actual) lines.push(t('reportActual', { value: m.actual }));
       lines.push(t('reportFailed', { sides: failed }));
       if (m.note) lines.push(t('reportNote', { note: m.note }));
       lines.push('');
@@ -633,11 +636,13 @@
         const count = query.httpCount || 1;
         const sections = [...new Set(usedBy.get(id) || [])];
         const origin = query.origin ? PAGE.originLabels[query.origin] : PAGE.originLabels.card;
-        const where = sections.length ? sections.join('、') : `<i>${esc(T.reconcileNoField)}</i>`;
+        const where = sections.length
+          ? sections.join(T.joinList)
+          : `<i>${esc(T.reconcileNoField)}</i>`;
         return (
           `<tr class="${query.conditional ? 'reconcile--conditional' : ''}">` +
           `<td><b>${esc(id)}</b></td>` +
-          `<td><code>${esc(query.endpoint.replace(/^GET /, ''))}</code></td>` +
+          `<td><code>${esc(pathLabel(query.endpoint))}</code></td>` +
           `<td>` +
           (query.filter
             ? `<code class="reconcile__filter">${esc(query.filter)}</code>` +
@@ -655,18 +660,14 @@
     const conditional = entries.filter(([, q]) => q.conditional);
     const conditionalNote = conditional.length
       ? `<p class="reconcile__note"><sup>*</sup> ${esc(t('reconcileConditional', { n: PAGE.stats.conditionalHttpCount }))}` +
-        conditional.map(([id, q]) => `<b>${esc(id)}</b> ${esc(q.enabledWhen || '')}`).join('；') +
+        conditional
+          .map(([id, q]) => `<b>${esc(id)}</b> ${esc(q.enabledWhen || '')}`)
+          .join(T.joinSemi) +
         `</p>`
       : '';
 
-    document.getElementById('reconcile-body').innerHTML =
-      `<p class="reconcile__lead">` +
-      t('reconcileLead', { base: `<b>${PAGE.stats.baseHttpCount} 支</b>` }) +
-      t('reconcileLoad', {
-        perHour: fmtRate(PAGE.stats.perHour),
-        polling: PAGE.stats.pollingHttpCount,
-      }) +
-      (PAGE.stats.byInterval.length > 1
+    const breakdown =
+      PAGE.stats.byInterval.length > 1
         ? t('reconcileBreakdown', {
             parts: PAGE.stats.byInterval
               .map((b) =>
@@ -676,10 +677,21 @@
                   perHour: fmtRate(b.perHour),
                 }),
               )
-              .join(T.reconcilePartJoin),
+              .join(T.joinSemi),
           })
-        : '') +
-      `。</p>` +
+        : '';
+
+    document.getElementById('reconcile-body').innerHTML =
+      `<p class="reconcile__lead">` +
+      t('reconcileLead', {
+        base: `<b>${esc(t('reconcileCount', { n: PAGE.stats.baseHttpCount }))}</b>`,
+      }) +
+      t('reconcileLoad', {
+        breakdown,
+        perHour: fmtRate(PAGE.stats.perHour),
+        polling: PAGE.stats.pollingHttpCount,
+      }) +
+      `</p>` +
       `<table class="reconcile"><thead><tr>` +
       `<th>${esc(T.reconcileColId)}</th><th>${esc(T.reconcileColEndpoint)}</th>` +
       `<th>${esc(T.reconcileColFilter)}</th><th>${esc(T.reconcileColCount)}</th>` +

@@ -179,8 +179,6 @@ skill 選項：
       '| UI 欄位 | 查詢 | response 欄位 | 取得方式 | 顯示層 |',
       '| ------- | ---- | ------------- | -------- | ------ |',
     ],
-    noQuery: '—',
-    queryJoin: ' ＋ ',
     checksHeading: '**驗證檢查點**',
     fieldNotesHeading: '**欄位註記**',
 
@@ -214,9 +212,21 @@ skill 選項：
     pageTitle: '{title} 欄位對照 · 驗收',
     heading: '{title} 欄位對照',
     generatedComment: '本檔由 `{command}` 從 {dataPath} 生成，請勿手改。要改內容請改 JSON 後重跑。',
+    faviconComment:
+      '空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求',
     indexTitle: '欄位對照',
     indexLead: '每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。',
     indexSource: '資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。',
+    indexColPage: '頁面',
+    indexColRoute: '路由',
+    indexColSections: '區塊',
+    indexColFields: '欄位',
+    indexColQueries: '查詢',
+    indexColLoad: '輪詢負載（支 HTTP）',
+    indexColAudited: '盤點日',
+    indexColMarkdown: 'LLM 版',
+    indexQueries: '{n}（{polling} 輪詢）',
+    indexLoad: '每小時 {n}',
 
     metaSections: '{n} 區塊',
     metaFields: '{n} 欄位',
@@ -306,9 +316,8 @@ skill 選項：
     reconcileTitle: 'Network 對帳清單',
     reconcileLead:
       '進頁後 Network 面板應出現 {base} request（不含條件性請求與瀏覽器自身的資源請求）。',
-    reconcileLoad: '其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支',
+    reconcileLoad: '其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支{breakdown}。',
     reconcileBreakdown: '（{parts}）',
-    reconcilePartJoin: '；',
     reconcilePart: '{label} × {http} 支 = {perHour}',
     reconcileColId: '#',
     reconcileColEndpoint: '端點',
@@ -321,13 +330,16 @@ skill 選項：
     reconcileNoFilter: '未設定',
     reconcileConditional: '條件性請求，共 {n} 支：',
 
+    reportHeading: '## {title} 驗收問題清單',
     reportSummary: '已驗 {done}/{total} · 有問題 {problems}',
+    reportSection: '### {section} · {field}',
     reportAllPass: '全數通過，無標記為有問題的欄位。',
-    reportQuery: '- 查詢：{value}',
+    reportQuery: '- 查詢：{id} `{endpoint}`（{params}）',
     reportQueryNone: '- 查詢：—（前端生成）',
+    reportResp: '- response：`{value}`',
     reportExpectValue: '- 預期取值：{source} —— {how}',
     reportExpectDisplay: '- 預期顯示：{display}',
-    reportActual: '- 畫面實際值：{value}',
+    reportActual: '- 畫面實際值：`{value}`',
     reportFailed: '- 問題：{sides} ✗',
     reportNote: '- 備註：{note}',
 
@@ -338,5 +350,10 @@ skill 選項：
     toastReset: '已清空驗收標記',
     confirmReset: '確定清空全部驗收標記？目前已驗 {done}/{total}，此動作無法復原。',
     warnStorage: '無法寫入 localStorage',
+
+    /** 分隔符。ui 只能是純字串，故不像 md 那樣收在 join 子物件裡。 */
+    joinList: '、',
+    joinSemi: '；',
+    joinMeta: ' ・ ',
   },
 };

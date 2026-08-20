@@ -25,20 +25,21 @@ describe('語系註冊表', () => {
   });
 });
 
-describe('ui 區段', () => {
+describe.each(localeIds())('%s 的 ui 區段', (id) => {
+  const { ui } = getLocale(id);
+
   it('全部為字串——放進函式會在序列化時靜默消失', () => {
-    for (const [key, value] of Object.entries(DEFAULT_LOCALE.ui)) {
+    for (const [key, value] of Object.entries(ui)) {
       expect(typeof value, `ui.${key}`).toBe('string');
     }
   });
 
   it('JSON 往返後內容不變', () => {
-    const roundTripped: unknown = JSON.parse(JSON.stringify(DEFAULT_LOCALE.ui));
-    expect(roundTripped).toEqual(DEFAULT_LOCALE.ui);
+    expect(JSON.parse(JSON.stringify(ui))).toEqual(ui);
   });
 
   it('沒有空字串——漏填的 key 會讓介面出現空白而非報錯', () => {
-    const empty = Object.entries(DEFAULT_LOCALE.ui)
+    const empty = Object.entries(ui)
       .filter(([, value]) => value.trim() === '')
       .map(([key]) => key);
     expect(empty).toEqual([]);

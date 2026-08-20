@@ -153,17 +153,17 @@ describe('佔位符代入', () => {
 
   it('HTML 沒有殘留未代入的 {name}——打錯變數名會在此現形', () => {
     const rendered = stripCode(renderHtml(PAGE, STATS, TEST_CONTEXT));
-    expect(rendered.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+    expect(rendered.match(/\{[a-zA-Z]\w*(\|[^{}]*)?\}/g)).toBeNull();
   });
 
   it('index 沒有殘留未代入的 {name}', () => {
     const rendered = stripCode(renderIndex([{ page: PAGE, stats: STATS }], TEST_CONTEXT));
-    expect(rendered.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+    expect(rendered.match(/\{[a-zA-Z]\w*(\|[^{}]*)?\}/g)).toBeNull();
   });
 
   it('markdown 沒有殘留未代入的 {name}', () => {
     const md = renderMarkdown(PAGE, STATS, TEST_CONTEXT);
-    expect(md.match(/\{[a-zA-Z]\w*\}/g)).toBeNull();
+    expect(md.match(/\{[a-zA-Z]\w*(\|[^{}]*)?\}/g)).toBeNull();
   });
 });
 

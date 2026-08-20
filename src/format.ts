@@ -44,11 +44,23 @@ export function formatRate(perHour: number): string {
 }
 
 /**
- * `{name}` 佔位符代入。`ui` 區段的字串會被序列化進瀏覽器，不能用函式，故以此為替代。
+ * `{name}` 佔位符，另支援 `{name|單數|複數}` 二選一。
+ *
+ * `ui` 區段的字串會被序列化進瀏覽器，不能放函式（放了會在序列化時靜默消失），所以複數
+ * 規則只能寫進字串本身。其餘區段跑在 Node，直接用函式判斷即可，不必走這裡。
+ *
+ * **刻意不用 `Intl.PluralRules`**：它的輸出綁在 Node 內建的 ICU 版本上，跨版本可能變動，
+ * 而本專案的生成物要逐位元組比對（見 AGENTS.md §2.2）。兩形態的規則簡單到不值得為它
+ * 賭掉決定性；真的遇到需要三形態以上的語系再說。
+ *
  * app.js 有一份同規則的實作。
  */
+const SLOT = /\{(\w+)(?:\|([^|{}]*)\|([^|{}]*))?\}/g;
+
 export function fmt(template: string, vars: Record<string, number | string> = {}): string {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) =>
-    Object.hasOwn(vars, key) ? String(vars[key]) : '',
-  );
+  return template.replace(SLOT, (_, key: string, one?: string, other?: string) => {
+    if (!Object.hasOwn(vars, key)) return '';
+    if (one === undefined || other === undefined) return String(vars[key]);
+    return Number(vars[key]) === 1 ? one : other;
+  });
 }

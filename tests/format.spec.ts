@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { formatInterval, formatRate } from '../src/format.js';
+import { fmt, formatInterval, formatRate } from '../src/format.js';
 import { DEFAULT_LOCALE as L } from '../src/locales/index.js';
 
 describe('formatInterval', () => {
@@ -44,5 +44,28 @@ describe('formatRate', () => {
 
   it('小數取一位', () => {
     expect(formatRate(8.5714)).toBe('8.6');
+  });
+});
+
+describe('fmt 的複數形態', () => {
+  it('n 為 1 取單數', () => {
+    expect(fmt('{n} {n|section|sections}', { n: 1 })).toBe('1 section');
+  });
+
+  it('n 非 1 取複數——不規則變化也行，因為兩形態都寫在字串裡', () => {
+    expect(fmt('{n} {n|query|queries}', { n: 3 })).toBe('3 queries');
+    expect(fmt('{n} {n|query|queries}', { n: 0 })).toBe('0 queries');
+  });
+
+  it('同一變數可同時作為數值與形態選擇', () => {
+    expect(fmt('{n} {n|item|items}', { n: 2 })).toBe('2 items');
+  });
+
+  it('未提供的變數整段代為空字串，不留下形態語法', () => {
+    expect(fmt('[{n|item|items}]')).toBe('[]');
+  });
+
+  it('空的形態是合法的——中文之類無複數變化的語系用得到', () => {
+    expect(fmt('{n} 個{n||}', { n: 5 })).toBe('5 個');
   });
 });

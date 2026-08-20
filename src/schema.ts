@@ -8,6 +8,12 @@
 
 import { z } from 'zod';
 
+/**
+ * 本檔的自訂訊息一律英文。它們會與 zod 自身的預設訊息（`Too small`、`Invalid input` 等，
+ * 也是英文）並列出現在同一份 `errors.invalidPage` detail 裡；只翻其中兩則會變成中英夾雜。
+ * schema 層不接 locale——它是模組級常數，取不到設定。
+ */
+
 /** 值的取得方式。驅動 HTML 的顏色標記與篩選器，也是驗收時最常切的維度。 */
 export const sourceKindSchema = z.enum([
   /** API 欄位直取 */
@@ -150,14 +156,14 @@ export const noteSchema = z.object({
 
 export const fieldMapPageSchema = z.object({
   /** kebab-case，決定輸出檔名與 localStorage 命名空間 */
-  page: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'page 必須為 kebab-case'),
+  page: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'page must be kebab-case'),
   title: z.string().min(1),
   /** 路由樣板，如 '/sites/:id'；非 SPA 或無固定路由時可省略 */
   route: z.string().min(1).optional(),
   /** 盤點時讀過的原始碼檔案，供日後回頭核對 */
   sources: z.array(z.string()).min(1),
   /** 盤點日。這是「對過程式碼」的日期，不是「使用者驗收過」的日期 */
-  auditedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'auditedAt 必須為 YYYY-MM-DD'),
+  auditedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'auditedAt must be YYYY-MM-DD'),
   queries: z.record(z.string(), querySchema),
   sections: z.array(sectionSchema),
   notes: z.array(noteSchema).optional(),

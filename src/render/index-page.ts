@@ -44,8 +44,8 @@ export function renderIndex(
             <td><span class="resp">${page.route === undefined ? ctx.locale.md.placeholder : escapeHtml(page.route)}</span></td>
             <td>${stats.sectionCount}</td>
             <td>${stats.fieldCount}</td>
-            <td>${stats.queryCount}（${stats.pollingQueryCount} 輪詢）</td>
-            <td>每小時 ${formatRate(stats.perHour)}</td>
+            <td>${escapeHtml(fmt(ui.indexQueries, { n: stats.queryCount, polling: stats.pollingQueryCount }))}</td>
+            <td>${escapeHtml(fmt(ui.indexLoad, { n: formatRate(stats.perHour) }))}</td>
             <td>${escapeHtml(page.auditedAt)}</td>
             <td><a class="index__link" href="./${page.page}.md">md</a></td>
           </tr>`,
@@ -106,14 +106,14 @@ ${css}
       <table>
         <thead>
           <tr>
-            <th>頁面</th>
-            <th>路由</th>
-            <th>區塊</th>
-            <th>欄位</th>
-            <th>查詢</th>
-            <th>輪詢負載（支 HTTP）</th>
-            <th>盤點日</th>
-            <th>LLM 版</th>
+            <th>${escapeHtml(ui.indexColPage)}</th>
+            <th>${escapeHtml(ui.indexColRoute)}</th>
+            <th>${escapeHtml(ui.indexColSections)}</th>
+            <th>${escapeHtml(ui.indexColFields)}</th>
+            <th>${escapeHtml(ui.indexColQueries)}</th>
+            <th>${escapeHtml(ui.indexColLoad)}</th>
+            <th>${escapeHtml(ui.indexColAudited)}</th>
+            <th>${escapeHtml(ui.indexColMarkdown)}</th>
           </tr>
         </thead>
         <tbody>${rows}
