@@ -96,6 +96,7 @@ skill 選項：
   errors: {
     dataDirMissing: (dir: string) => `資料目錄不存在：${dir}`,
     noDataFiles: (dir: string) => `${dir} 下沒有任何 .json 資料檔`,
+    dataNotJson: (file: string, detail: string) => `${file} 不是合法的 JSON：${detail}`,
     invalidPage: (file: string, detail: string) => `${file} 資料格式不符：\n${detail}`,
     pageNameMismatch: (file: string, declared: string, expected: string) =>
       `${file} 的 page（${declared}）與檔名（${expected}）不一致`,
@@ -105,6 +106,12 @@ skill 選項：
     duplicateFilter: (file: string, id: string, owner: string, filter: string) =>
       `${file} 的 ${id} 與 ${owner} 使用了相同的 Network 篩選字串「${filter}」——` +
       '兩支查詢在 DevTools 面板中將無法分辨，請改用更精確的片段。',
+    respPlaceholder: (file: string, sectionKey: string, fieldId: string) =>
+      `${file} 的 ${sectionKey}/${fieldId} 把 resp 填成破折號。` +
+      '不來自任何 API 的欄位請填 null——破折號是顯示層的事，由語系決定。',
+    conditionalNeedsEnabledWhen: (file: string, id: string) =>
+      `${file} 的 ${id} 標成 conditional 卻沒有 enabledWhen——` +
+      '對帳清單會列出這支查詢卻說不出它何時才發，請補上條件說明。',
     unknownQueryRef: (file: string, sectionKey: string, fieldId: string, queryId: string) =>
       `${file} 的 ${sectionKey}/${fieldId} 參照了不存在的查詢：${queryId}`,
     configNotFound: (filename: string, cwd: string) =>

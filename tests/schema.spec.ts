@@ -171,3 +171,66 @@ describe('loadPages', () => {
     expect(message).toMatch(/sections\.0\.fields/);
   });
 });
+
+describe('conditional 與 enabledWhen', () => {
+  /**
+   * 兩者不重疊，別把它們合併：`enabledWhen` 說「什麼條件下才會跑」，`conditional` 說
+   * 「進頁當下會不會發」。工具讀不懂散文，後者只能由人明示。
+   */
+  it('conditional 沒有 enabledWhen 時擋下——對帳清單會列出查詢卻說不出它何時才發', () => {
+    const message = loadWith((page) => {
+      page.queries.Q1!.conditional = true;
+    });
+
+    expect(message).toMatch(/Q1/);
+    expect(message).toMatch(/enabledWhen/);
+  });
+
+  it('conditional 帶著 enabledWhen 是合法的', () => {
+    const message = loadWith((page) => {
+      page.queries.Q1!.conditional = true;
+      page.queries.Q1!.enabledWhen = '卡片已展開';
+    });
+
+    expect(message).toBe('');
+  });
+
+  it('有 enabledWhen 但不是 conditional 是合法的——條件在驗收時本來就成立', () => {
+    // 「已登入」這種條件在驗收當下必然成立，該查詢確實每次進頁都發，
+    // 不該被排除在「進頁應出現 N 支」的基準之外。
+    const message = loadWith((page) => {
+      page.queries.Q1!.enabledWhen = '已登入';
+    });
+
+    expect(message).toBe('');
+  });
+});
+
+describe('resp', () => {
+  it('不來自 API 的欄位填 null', () => {
+    const message = loadWith((page) => {
+      page.sections[0]!.fields[0]!.resp = null;
+      delete page.sections[0]!.fields[0]!.query;
+    });
+
+    expect(message).toBe('');
+  });
+
+  it('填破折號時擋下並指路——它是合法字串，schema 擋不住，會被當成路徑靜默通過', () => {
+    const message = loadWith((page) => {
+      page.sections[0]!.fields[0]!.resp = '—';
+    });
+
+    expect(message).toMatch(/sec-one\/f1/);
+    expect(message).toMatch(/null/);
+  });
+
+  it('省略 resp 仍然擋下——「漏填」與「確認過沒有」必須分得開', () => {
+    const message = loadWith((page) => {
+      delete (page.sections[0]!.fields[0] as { resp?: unknown }).resp;
+    });
+
+    expect(message).toMatch(/resp/);
+  });
+});
+

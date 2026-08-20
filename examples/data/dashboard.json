@@ -63,7 +63,8 @@
       "filter": "orders/refunds",
       "refetch": 3600000,
       "conditional": true,
-      "note": "退款卡片預設收合，展開後才發。"
+      "note": "退款卡片預設收合，展開後才發。",
+      "enabledWhen": "退款卡片已展開"
     }
   },
   "sections": [
@@ -113,7 +114,7 @@
           "id": "avg-order-value",
           "label": "客單價",
           "query": "Q1",
-          "resp": "—",
+          "resp": null,
           "source": "fe-derive",
           "how": "前端換算：revenue ÷ orderCount",
           "display": "四捨五入至整數 + 「元」；orderCount 為 0 時顯示 —",
@@ -156,7 +157,7 @@
         {
           "id": "trend-labels",
           "label": "X 軸標籤",
-          "resp": "—",
+          "resp": null,
           "source": "fe-const",
           "how": "前端生成近 7 日日期，不來自 API",
           "display": "MM/DD"

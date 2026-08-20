@@ -248,7 +248,7 @@
     const expanded = state.expanded.has(row.id);
     const stale = isStale(row.id);
     const resp =
-      row.field.resp === '—'
+      row.field.resp === null
         ? `<span class="resp resp--none">${esc(T.respNone)}</span>`
         : `<span class="resp">${esc(row.field.resp)}</span>`;
 

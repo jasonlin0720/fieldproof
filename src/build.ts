@@ -49,7 +49,16 @@ export function loadPages(dataDir: string, locale: Locale = DEFAULT_LOCALE): Fie
   }
 
   return files.map((file) => {
-    const raw: unknown = JSON.parse(readFileSync(join(dataDir, file), 'utf8'));
+    // 資料檔是人手寫的，語法錯是預期路徑：原生 SyntaxError 只有 position，不說是哪個檔。
+    let raw: unknown;
+    try {
+      raw = JSON.parse(readFileSync(join(dataDir, file), 'utf8'));
+    } catch (error) {
+      throw new Error(
+        locale.errors.dataNotJson(file, error instanceof Error ? error.message : String(error)),
+      );
+    }
+
     const parsed = fieldMapPageSchema.safeParse(raw);
 
     if (!parsed.success) {
@@ -67,6 +76,8 @@ export function loadPages(dataDir: string, locale: Locale = DEFAULT_LOCALE): Fie
     assertUniqueIds(file, parsed.data, locale);
     assertQueryRefs(file, parsed.data, locale);
     assertUniqueFilters(file, parsed.data, locale);
+    assertConditionalHasCondition(file, parsed.data, locale);
+    assertRespNotPlaceholder(file, parsed.data, locale);
 
     return parsed.data;
   });
@@ -106,6 +117,40 @@ function assertUniqueFilters(file: string, page: FieldMapPage, locale: Locale): 
       throw new Error(locale.errors.duplicateFilter(file, id, owner, query.filter));
     }
     seen.set(query.filter, id);
+  }
+}
+
+/**
+ * 標成 `conditional` 的查詢必須說得出 `enabledWhen`。
+ *
+ * 兩者不重疊，別把它們合併：`enabledWhen` 說「什麼條件下才會跑」，`conditional` 說
+ * 「進頁當下會不會發」——工具讀不懂散文，後者只能由人明示。反向不成立：一支帶
+ * `enabledWhen` 的查詢，條件在驗收時本來就成立的話（如「已登入」），它確實每次都發。
+ *
+ * 但標成條件性卻不寫條件，對帳清單就會印出一個沒有說明的查詢 id，讀的人無從判斷
+ * 該不該在 Network 面板看到它。
+ */
+function assertConditionalHasCondition(file: string, page: FieldMapPage, locale: Locale): void {
+  for (const [id, query] of Object.entries(page.queries)) {
+    if (query.conditional && query.enabledWhen === undefined) {
+      throw new Error(locale.errors.conditionalNeedsEnabledWhen(file, id));
+    }
+  }
+}
+
+/**
+ * `resp` 不得填破折號。
+ *
+ * 舊格式用 `'—'` 表示「不來自 API」。它是合法的非空字串，schema 擋不下來，會被當成
+ * 一個名為 `—` 的 response 路徑靜默通過——比報錯更糟。
+ */
+function assertRespNotPlaceholder(file: string, page: FieldMapPage, locale: Locale): void {
+  for (const section of page.sections) {
+    for (const field of section.fields) {
+      if (field.resp !== null && /^[—–-]$/.test(field.resp.trim())) {
+        throw new Error(locale.errors.respPlaceholder(file, section.key, field.id));
+      }
+    }
   }
 }
 

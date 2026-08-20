@@ -139,8 +139,7 @@ function renderSection(section: Section, index: number, locale: Locale): string[
   lines.push('', ...locale.md.fieldTableHead);
 
   for (const field of section.fields) {
-    const resp =
-      field.resp === locale.md.placeholder ? locale.md.placeholder : `\`${cell(field.resp)}\``;
+    const resp = field.resp === null ? locale.md.placeholder : `\`${cell(field.resp)}\``;
     lines.push(
       `| ${cell(field.label)}${flagLabel(field, locale)} | ${queryLabel(field, locale)} | ` +
         `${resp} | ${locale.md.fieldRow(locale.source[field.source], cell(field.how))} | ` +

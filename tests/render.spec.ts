@@ -43,7 +43,7 @@ function richPage(): FieldMapPage {
       {
         id: 'no-query',
         label: '純前端欄位',
-        resp: '—',
+        resp: null,
         source: 'fe-const',
         how: '前端硬編',
         display: '固定文字',

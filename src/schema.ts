@@ -101,8 +101,13 @@ export const fieldSchema = z.object({
    * HTML 依查詢分組時歸入「無查詢（前端生成）」群組。
    */
   query: z.union([z.string(), z.array(z.string()).min(1)]).optional(),
-  /** response 欄位路徑，如 'items[].remainingEnergyPercent'；無對應填 '—' */
-  resp: z.string().min(1),
+  /**
+   * response 欄位路徑，如 'items[].remainingEnergyPercent'。
+   *
+   * **不來自任何 API 時填 `null`**（不是省略、也不是破折號）：省略無法與「漏填」區分，
+   * 破折號則是顯示層的事，寫進資料會讓三個地方各自比對同一個哨兵字串。
+   */
+  resp: z.string().min(1).nullable(),
   source: sourceKindSchema,
   /** 取值方式一句話 */
   how: z.string().min(1),
