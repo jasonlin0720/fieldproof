@@ -124,10 +124,6 @@ skill 選項：
     openHtml: (page: string) =>
       `> **人要驗收請開 [\`${page}.html\`](./${page}.html)**（可勾選、可篩選、可匯出問題清單）；`,
     audienceNote: '> 本 markdown 是給 LLM 讀與 `git diff` 審閱用的。',
-    sharedRules: [
-      '> 跨頁通用規則（回應 envelope、空值退場、數字格式、刷新機制等）見同目錄',
-      '> [README.md](./README.md)，本檔不重述。',
-    ],
     auditedAt: (date: string) =>
       `> 盤點日期：**${date}**（「對過程式碼」的日期，不是「驗收過」的日期）`,
     sourcesHeading: '> 盤點時讀過的原始碼：',
@@ -220,7 +216,6 @@ skill 選項：
     indexTitle: '欄位對照',
     indexLead: '每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。',
     indexSource: '資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。',
-    indexRules: '通用規則見',
 
     metaSections: '{n} 區塊',
     metaFields: '{n} 欄位',

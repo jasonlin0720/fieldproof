@@ -98,8 +98,7 @@ ${css}
       <h1>${escapeHtml(ui.indexTitle)}</h1>
       <p>
         ${escapeHtml(ui.indexLead)}<br />
-        ${indexSource} ${escapeHtml(ui.indexRules)}
-        <a class="index__link" href="./README.md">README.md</a>。
+        ${indexSource}
       </p>
       <table>
         <thead>

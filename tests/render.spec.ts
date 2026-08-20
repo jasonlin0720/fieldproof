@@ -266,6 +266,20 @@ describe('可選欄位的退場', () => {
   });
 });
 
+describe('生成物不假設消費端有哪些檔案', () => {
+  /**
+   * 曾經無條件連向同目錄的 README.md（原專案的跨頁通用規則）。消費端沒放那個檔
+   * 就是死連結——連 examples/ 自己都沒有。通用規則改由 skill 承載，不由生成物指路。
+   */
+  it('markdown 不含指向 README.md 的連結', () => {
+    expect(renderMarkdown(PAGE, STATS, TEST_CONTEXT)).not.toContain('README.md');
+  });
+
+  it('index 不含指向 README.md 的連結', () => {
+    expect(renderIndex([{ page: PAGE, stats: STATS }], TEST_CONTEXT)).not.toContain('README.md');
+  });
+});
+
 describe('renderIndex', () => {
   it('逐字輸出維持不變', () => {
     expect(renderIndex([{ page: PAGE, stats: STATS }], TEST_CONTEXT)).toMatchSnapshot();

@@ -231,8 +231,6 @@ export function renderMarkdown(
     md.openHtml(page.page),
     md.audienceNote,
     '>',
-    ...md.sharedRules,
-    '>',
     md.auditedAt(page.auditedAt),
     '>',
     md.sourcesHeading,
