@@ -138,6 +138,7 @@ export function build(config: ResolvedConfig, options: { check?: boolean } = {})
     command: config.command,
     dataDir: config.dataDir,
     locale,
+    namespace: config.namespace,
   };
   const wants = (kind: (typeof config.outputs)[number]): boolean => config.outputs.includes(kind);
 

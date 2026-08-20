@@ -29,6 +29,15 @@ export const configSchema = z.object({
    * （如 `pnpm fields`），故可覆寫。
    */
   command: z.string().min(1).default('fieldproof build'),
+  /**
+   * 驗收狀態的 localStorage 命名空間。
+   *
+   * 同一個瀏覽器 origin 下（用 `file://` 開時全部算同一個），兩個專案若都有名為
+   * `dashboard` 的頁面，驗收標記會互相覆蓋。此值把它們隔開。
+   *
+   * 刻意不自動由絕對路徑推導——那會讓生成物因機器而異，殺掉 `--check`。
+   */
+  namespace: z.string().min(1).optional(),
   /** 要產出哪些格式 */
   outputs: z.array(outputKindSchema).min(1).default(['html', 'markdown', 'index']),
 });
@@ -55,6 +64,8 @@ export interface RenderContext {
   /** 資料目錄的顯示路徑，如 `docs/fields/data` */
   dataDir: string;
   locale: Locale;
+  /** 驗收狀態的 localStorage 命名空間；未設定時只以頁名區分 */
+  namespace?: string;
 }
 
 /** 自 `from` 向上探尋設定檔；找不到回傳 undefined。 */

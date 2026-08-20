@@ -83,6 +83,8 @@ export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: Render
       })),
       flagMeta: locale.flag,
       // 間隔標籤預先算好注入，瀏覽器端不重寫一套格式化規則。
+      // 驗收狀態的命名空間。未設定時為 null，app.js 退回只以頁名區分（即舊行為）。
+      namespace: ctx.namespace ?? null,
       intervalLabels: Object.fromEntries(
         stats.byInterval.map((load) => [load.intervalMs, formatInterval(load.intervalMs, locale)]),
       ),

@@ -13,8 +13,11 @@
 
   /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
   const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-  const STORE_KEY = `fieldproof:v1:${PAGE.page}`;
-  const PREF_KEY = `fieldproof:v1:${PAGE.page}:prefs`;
+  // 同一個瀏覽器 origin 下（`file://` 全部算同一個），不同專案的同名頁面會互相覆蓋，
+  // 故由設定的 namespace 隔開；未設定時維持舊行為，只以頁名區分。
+  const SCOPE = PAGE.namespace ? `${PAGE.namespace}:${PAGE.page}` : PAGE.page;
+  const STORE_KEY = `fieldproof:v1:${SCOPE}`;
+  const PREF_KEY = `fieldproof:v1:${SCOPE}:prefs`;
 
   const SOURCE_LABELS = PAGE.sourceLabels;
   const FLAG_META = PAGE.flagMeta;
