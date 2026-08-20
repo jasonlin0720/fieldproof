@@ -172,44 +172,18 @@ function renderSection(section: Section, index: number, locale: Locale): string[
   return lines;
 }
 
-/** 依 source 分兩欄：後端算好的（改不了）vs 前端算的（改得了）。 */
-function renderSourceSummary(page: FieldMapPage, stats: FieldMapStats, locale: Locale): string[] {
-  const backendKinds = new Set(['backend-agg', 'direct']);
-  const backend: string[] = [];
-  const frontend: string[] = [];
-
-  for (const section of page.sections) {
-    for (const field of section.fields) {
-      const entry = locale.md.summaryEntry(section.title, field.label, cell(field.resp));
-      if (backendKinds.has(field.source)) backend.push(entry);
-      else frontend.push(entry);
-    }
-  }
-
-  const rows: Array<{ backend: string; frontend: string }> = [];
-  const rowCount = Math.max(backend.length, frontend.length);
-  for (let i = 0; i < rowCount; i += 1) {
-    rows.push({
-      backend: backend[i] ?? locale.md.placeholder,
-      frontend: frontend[i] ?? locale.md.placeholder,
-    });
-  }
-
-  const counts = Object.entries(stats.bySource)
+/**
+ * 各 source 的欄位數，如「API 直取 5 ・ 前端聚合 2」。
+ *
+ * 曾經還有一張「後端算好 vs 前端算的」兩欄速查表，已移除：每個欄位的 `source` 前面的
+ * 區塊表格就有了，重印一次佔全文一成三，而且兩欄以索引配對會讓左右列看起來相關——
+ * 這份 markdown 的讀者是 LLM，表格列的並置正是它會拿來推論的東西。
+ */
+function sourceCounts(stats: FieldMapStats, locale: Locale): string {
+  return Object.entries(stats.bySource)
     .filter(([, count]) => count > 0)
     .map(([kind, count]) => locale.md.sourceCount(locale.source[kind as never], count))
     .join(locale.md.sourceCountJoin);
-
-  return [
-    locale.md.summaryHeading,
-    '',
-    locale.md.summaryLead,
-    '',
-    locale.md.summaryDistribution(counts),
-    '',
-    ...locale.md.summaryTableHead,
-    ...rows.map((row) => `| ${row.backend} | ${row.frontend} |`),
-  ];
 }
 
 export function renderMarkdown(
@@ -244,6 +218,7 @@ export function renderMarkdown(
     md.overviewPolling(stats.pollingQueryCount, stats.pollingHttpCount),
     md.overviewLoad(formatRate(stats.perHour), intervalBreakdown(stats, locale)),
     md.overviewBaseline(stats.baseHttpCount, stats.conditionalHttpCount),
+    md.overviewSources(sourceCounts(stats, locale)),
     '',
     ...md.overviewDerivedNote,
     '',
@@ -263,10 +238,8 @@ export function renderMarkdown(
     lines.push(...renderSection(section, index, locale), '', '---', '');
   });
 
-  lines.push(...renderSourceSummary(page, stats, locale), '');
-
   if (page.notes?.length) {
-    lines.push('---', '', md.notesHeading, '');
+    lines.push(md.notesHeading, '');
     page.notes.forEach((note, index) => {
       lines.push(md.noteItem(index + 1, note.title), '', `   ${note.body}`, '');
     });

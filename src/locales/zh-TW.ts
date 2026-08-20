@@ -138,6 +138,7 @@ skill 選項：
     overviewBaseline: (base: number, conditional: number) =>
       `- **Network 對帳基準：進頁應出現 ${base} 支 request**` +
       (conditional ? `，另有 ${conditional} 支條件性請求（卡片隱藏時不會出現）` : ''),
+    overviewSources: (counts: string) => `- 欄位分佈：${counts}`,
     overviewDerivedNote: [
       '> 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。',
       '> 若分頁常駐且背景仍刷新，實際負載需再乘上同時在線的分頁數。',
@@ -173,14 +174,6 @@ skill 選項：
     checksHeading: '**驗證檢查點**',
     fieldNotesHeading: '**欄位註記**',
 
-    summaryHeading: '## 「後端算好」vs「前端算的」速查',
-    summaryLead: '要改動取值邏輯時先看這張表——左欄改不了（要找後端），右欄改得了（在前端）。',
-    summaryDistribution: (counts: string) => `欄位分佈：${counts}`,
-    summaryTableHead: [
-      '| 後端算好、前端直取 | 前端自己算 |',
-      '| ------------------ | ---------- |',
-    ],
-
     notesHeading: '## 已知落差 / 注意事項',
     noteItem: (index: number, title: string) => `${index}. **${title}**`,
 
@@ -201,8 +194,6 @@ skill 選項：
     checkItem: (given: string, expect: string) => `  - \`${given}\` → ${expect}`,
     fieldNote: (label: string, parts: string) => `- **${label}**：${parts}`,
     flagWithLabel: (icon: string, label: string) => `${icon} ${label}`,
-    summaryEntry: (section: string, field: string, resp: string) =>
-      `${section}・${field}（\`${resp}\`）`,
     sourceCount: (label: string, count: number) => `${label} ${count}`,
     sourceCountJoin: ' ・ ',
     queryNoteItem: (id: string) => `- **${id}**：`,
