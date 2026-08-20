@@ -419,14 +419,25 @@ tr.group:first-child > td {
 
 /* 欄內容 */
 
+/*
+ * 列身不再可點（那會踩掉文字選取），這顆是唯一的展開入口，所以要撐滿整個儲存格。
+ * 用絕對定位而非 width/height 100%：儲存格高度由該列最高的欄決定，事先不知道。
+ */
+.cell-expand {
+  position: relative;
+}
+
 .expand {
-  width: 100%;
-  padding: 0;
+  position: absolute;
+  inset: 0;
+  padding: 8px 9px;
   border: 0;
   background: none;
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .expand:hover {

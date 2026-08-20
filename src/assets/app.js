@@ -81,8 +81,10 @@
     }
   }
 
+  const ROW_BY_ID = new Map(ROWS.map((row) => [row.id, row]));
+
   const markOf = (id) => marks[id] || {};
-  const fieldOf = (id) => ROWS.find((row) => row.id === id)?.field;
+  const fieldOf = (id) => ROW_BY_ID.get(id)?.field;
 
   const HASH_KEY = { data: 'dataHash', display: 'displayHash' };
 
@@ -204,13 +206,22 @@
   /** 極簡 inline markdown：只處理 **粗體**，供 checks 標出「不是 0」這類重點。 */
   const inlineMd = (text) => text.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
+  /**
+   * 精簡的端點顯示：省略 `GET ` 前綴，其餘方法保留。
+   *
+   * 這是刻意的不對稱而非疏漏——GET 是預設，寫出來只佔寬度；POST / DELETE 在 Network
+   * 對帳時正是要一眼看見的資訊，剝掉會弄丟它。詳情類欄位（明細框、markdown 查詢表）
+   * 一律顯示完整端點。
+   */
+  const pathLabel = (endpoint) => endpoint.replace(/^GET /, '');
+
   function srcChip(source) {
     return `<span class="src src--${esc(source)}">${esc(SOURCE_LABELS[source])}</span>`;
   }
 
   function flagIcons(field) {
     if (!field.flags || !field.flags.length) return '';
-    const title = field.flags.map((f) => FLAG_META[f].label).join('；');
+    const title = field.flags.map((f) => FLAG_META[f].label).join(T.joinSemi);
     const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
     return `<span class="field-flags" title="${esc(title)}">${icons}</span>`;
   }
@@ -246,6 +257,19 @@
     );
   }
 
+  /**
+   * 失效標籤。整表渲染與 patchRow 共用同一份——patchRow 曾經只會**移除**標籤，
+   * 於是「兩側都失效 → 只重標資料側」之後，文字仍停在「定義已變更」而非「顯示定義已變更」。
+   */
+  function staleTagHtml(id) {
+    const data = isStaleSide(id, 'data');
+    const display = isStaleSide(id, 'display');
+    if (!data && !display) return '';
+
+    const label = data && display ? T.staleBoth : data ? T.staleData : T.staleDisplay;
+    return `<span class="stale-tag" title="${esc(T.staleTagTitle)}">⟳ ${esc(label)}</span>`;
+  }
+
   function rowHtml(row) {
     const m = markOf(row.id);
     const expanded = state.expanded.has(row.id);
@@ -258,18 +282,10 @@
     return (
       `<tr class="row${expanded ? ' row--expanded' : ''}${hasProblem(row.id) ? ' row--ng' : ''}` +
       `${stale ? ' row--stale' : ''}" data-id="${esc(row.id)}">` +
-      `<td><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
+      `<td class="cell-expand"><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
       `aria-expanded="${expanded}" aria-label="${esc(T.expandAria)}">${expanded ? '▾' : '▸'}</button></td>` +
       `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field)}` +
-      (stale
-        ? `<span class="stale-tag" title="${esc(T.staleTagTitle)}">⟳ ${
-            isStaleSide(row.id, 'data') && isStaleSide(row.id, 'display')
-              ? T.staleBoth
-              : isStaleSide(row.id, 'data')
-                ? T.staleData
-                : T.staleDisplay
-          }</span>`
-        : '') +
+      staleTagHtml(row.id) +
       (row.field.checks
         ? `<span class="checks-tag" title="${esc(t('checksTagTitle', { n: row.field.checks.length }))}">${esc(t('checksTag', { n: row.field.checks.length }))}</span>`
         : '') +
@@ -291,7 +307,8 @@
     );
   }
 
-  function detailHtml(row) {
+  /** 明細內容本體，不含表格列外殼——整表渲染與局部插入共用同一份。 */
+  function detailGridHtml(row) {
     const boxes = row.queryIds.map((id) => {
       const query = PAGE.queries[id];
       if (!query) return '';
@@ -367,26 +384,58 @@
       );
     }
 
-    return `<tr class="detail"><td colspan="9"><div class="detail__grid">${boxes.join('')}</div></td></tr>`;
+    return `<div class="detail__grid">${boxes.join('')}</div>`;
+  }
+
+  /** 整表渲染用：連外殼一起輸出，直接串進 tbody 的 innerHTML。 */
+  function detailHtml(row) {
+    return `<tr class="detail"><td colspan="9">${detailGridHtml(row)}</td></tr>`;
+  }
+
+  /**
+   * 局部插入用：以 DOM API 建列。
+   *
+   * 不用 insertAdjacentHTML——在 `<tr>` 旁插入 `<tr>` 要靠解析器的表格上下文，各家實作
+   * 不一致（happy-dom 會把外殼整個丟掉）。createElement 沒有這個問題。
+   */
+  function detailRowEl(row) {
+    const tr = document.createElement('tr');
+    tr.className = 'detail';
+
+    const td = document.createElement('td');
+    td.colSpan = 9;
+    td.innerHTML = detailGridHtml(row);
+
+    tr.appendChild(td);
+    return tr;
+  }
+
+  /**
+   * 分組進度。groupHeadHtml 的初繪與 patchGroupProgress 的局部更新共用同一份——
+   * 曾經各寫一份，結果局部更新那份漏掉 locale，標記前後看到的字串來源不同。
+   */
+  function progressHtml(ids) {
+    const done = ids.filter(isVerified).length;
+    const ng = ids.filter(hasProblem).length;
+    return (
+      t('groupProgress', { done, total: ids.length }) +
+      (ng ? ` · <b style="color:var(--ng)">${esc(t('groupNg', { n: ng }))}</b>` : '')
+    );
   }
 
   function groupHeadHtml(group) {
-    const done = group.rows.filter((row) => isVerified(row.id)).length;
-    const ng = group.rows.filter((row) => hasProblem(row.id)).length;
-    const progress =
-      t('groupProgress', { done, total: group.rows.length }) +
-      (ng ? ` · <b style="color:var(--ng)">${esc(t('groupNg', { n: ng }))}</b>` : '');
+    const progress = progressHtml(group.rows.map((row) => row.id));
 
     if (group.kind === 'section') {
       const section = group.section;
       const meta = Object.entries(section.meta || {})
         .map(([k, v]) => `${esc(k)} ${esc(v)}`)
-        .join(' ・ ');
+        .join(T.joinMeta);
       return (
         `<tr class="group"><td colspan="9">` +
         `<div class="group__head"><span class="group__title">${esc(section.title)}</span>` +
         `<span class="group__key">${esc(section.key)}</span>` +
-        `<span class="group__meta">${esc(PAGE.sectionKindLabels[section.kind])}${meta ? ' ・ ' + meta : ''}</span>` +
+        `<span class="group__meta">${esc(PAGE.sectionKindLabels[section.kind])}${meta ? T.joinMeta + meta : ''}</span>` +
         (section.emptyRule
           ? `<span class="group__info" title="${esc(t('groupEmptyTitle', { rule: section.emptyRule }))}">${esc(T.groupEmptyInfo)}</span>`
           : '') +
@@ -458,6 +507,34 @@
   }
 
   /**
+   * 展開 / 收合明細。
+   *
+   * 不走 render()：重繪整個 tbody 會抹掉使用者當下的**文字選取**與輸入焦點。驗收時
+   * 常要把 response 路徑或篩選字串複製進 DevTools，選到一半被抹掉等於這個介面不能用。
+   * 與 patchRow() 同一條理由，只是當初只想到輸入框失焦。
+   */
+  function toggleExpand(id) {
+    const rowEl = document.querySelector(`tr.row[data-id="${id}"]`);
+    const row = ROW_BY_ID.get(id);
+    if (!rowEl || !row) return;
+
+    const willExpand = !state.expanded.has(id);
+    if (willExpand) {
+      state.expanded.add(id);
+      rowEl.insertAdjacentElement('afterend', detailRowEl(row));
+    } else {
+      state.expanded.delete(id);
+      const detail = rowEl.nextElementSibling;
+      if (detail && detail.classList.contains('detail')) detail.remove();
+    }
+
+    rowEl.classList.toggle('row--expanded', willExpand);
+    const btn = rowEl.querySelector('[data-expand]');
+    btn.setAttribute('aria-expanded', String(willExpand));
+    btn.textContent = willExpand ? '▾' : '▸';
+  }
+
+  /**
    * 標記後的局部更新：重繪整個 tbody 會讓正在編輯的備註 / 實際值輸入框失焦，
    * 故只改動該列自身、其所屬分組的進度與頁首進度。
    * 只有當篩選條件與標記狀態相關（只看未驗 / 只看有問題）時，該列可能要進出視野，
@@ -477,8 +554,13 @@
       const kind = marks.querySelector('.mark')?.dataset.kind;
       marks.classList.toggle('marks--stale', kind ? isStaleSide(id, kind) : false);
     }
+    // 標記只會讓某一側「重新有效」，不會讓原本不失效的列變失效，故只需更新或移除。
     const staleTag = rowEl.querySelector('.stale-tag');
-    if (staleTag && !isStale(id)) staleTag.remove();
+    if (staleTag) {
+      const html = staleTagHtml(id);
+      if (html) staleTag.outerHTML = html;
+      else staleTag.remove();
+    }
 
     patchGroupProgress(rowEl);
     renderProgress(visibleCount);
@@ -498,11 +580,7 @@
       if (cursor.classList.contains('row')) ids.push(cursor.dataset.id);
     }
 
-    const done = ids.filter(isVerified).length;
-    const ng = ids.filter(hasProblem).length;
-    groupEl.querySelector('.group__progress').innerHTML =
-      `${done}/${ids.length} 已驗` +
-      (ng ? ` · <b style="color:var(--ng)">${esc(t('groupNg', { n: ng }))}</b>` : '');
+    groupEl.querySelector('.group__progress').innerHTML = progressHtml(ids);
   }
 
   // ---------- 多選篩選器 ----------
@@ -735,18 +813,10 @@
       return;
     }
 
+    // 只有展開鈕能展開。整列可點的話，拖曳選取與雙擊選字都會被當成展開意圖——
+    // 兩者的 mousedown / mouseup 都落在同一列，瀏覽器照樣發 click，擋不掉。
     const expandBtn = event.target.closest('[data-expand]');
-    const rowEl = event.target.closest('tr.row');
-    const id = expandBtn
-      ? expandBtn.dataset.expand
-      : rowEl && !event.target.closest('input')
-        ? rowEl.dataset.id
-        : null;
-    if (id) {
-      if (state.expanded.has(id)) state.expanded.delete(id);
-      else state.expanded.add(id);
-      render();
-    }
+    if (expandBtn) toggleExpand(expandBtn.dataset.expand);
   });
 
   let inputTimer;
@@ -839,7 +909,7 @@
     [
       ...Object.keys(PAGE.queries).map((id) => ({
         value: id,
-        label: `${id} · ${PAGE.queries[id].endpoint.replace(/^GET /, '')}`,
+        label: `${id} · ${pathLabel(PAGE.queries[id].endpoint)}`,
         count: queryCounts.get(id) || 0,
       })),
       { value: '__none__', label: T.groupNoQuery, count: queryCounts.get('__none__') || 0 },
