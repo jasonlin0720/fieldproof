@@ -37,6 +37,7 @@
     sections: new Set(),
     queries: new Set(),
     sources: new Set(),
+    flags: new Set(),
     status: 'all',
     expanded: new Set(),
   };
@@ -139,6 +140,8 @@
     }
 
     if (state.sources.size && !state.sources.has(row.field.source)) return false;
+
+    if (state.flags.size && !(row.field.flags || []).some((f) => state.flags.has(f))) return false;
 
     if (state.status === 'unverified' && isVerified(row.id)) return false;
     if (state.status === 'problem' && !hasProblem(row.id)) return false;
@@ -587,6 +590,7 @@
 
   function buildMulti(id, label, items, target) {
     const host = document.getElementById(id);
+    if (!host) return;
     host.querySelector('.multi__panel').innerHTML = items
       .map(
         (item) =>
@@ -925,6 +929,20 @@
       .map((key) => ({ value: key, label: SOURCE_LABELS[key], count: sourceCounts.get(key) || 0 }))
       .filter((item) => item.count > 0),
     state.sources,
+  );
+
+  const flagCounts = countBy((row) => row.field.flags || []);
+  buildMulti(
+    'filter-flag',
+    T.filterFlag,
+    Object.keys(FLAG_META)
+      .map((key) => ({
+        value: key,
+        label: `${FLAG_META[key].icon} ${FLAG_META[key].label}`,
+        count: flagCounts.get(key) || 0,
+      }))
+      .filter((item) => item.count > 0),
+    state.flags,
   );
 
   for (const btn of document.querySelectorAll('[data-group]')) {

@@ -38,6 +38,7 @@ export const zhTW = {
     exception: { icon: '⚠', label: '違反全站慣例的刻意設計' },
     'backend-pending': { icon: '🕓', label: '後端尚在研議 / 目前為權宜解' },
     fragile: { icon: '⚡', label: '易碎：依賴字串格式比對等' },
+    unresolved: { icon: '❓', label: '來源未追出，本列為推測，需人工確認' },
   },
 
   interval: {
@@ -261,6 +262,7 @@ skill 選項：
     filterSection: '區塊',
     filterQuery: '查詢',
     filterSource: '取得方式',
+    filterFlag: '標記',
     statusLabel: '狀態',
     statusAria: '驗收狀態',
     statusAll: '全部',

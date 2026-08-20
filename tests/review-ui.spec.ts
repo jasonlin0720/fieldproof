@@ -220,3 +220,28 @@ describe('驗收狀態的存放位置', () => {
   });
 });
 
+describe('flag 篩選器', () => {
+  /**
+   * 追不出來源的欄位一定會有，schema 也允許它誠實說出來（`unresolved`）。但六十欄的表裡，
+   * 一個角落的圖示等於沒有——要能把「哪幾格是推測的」直接篩出來，那個誠實才有作用。
+   */
+  it('篩出帶指定 flag 的欄位', () => {
+    const app = open();
+    const box = app.doc.querySelector('#filter-flag input[value="unresolved"]');
+
+    (box as unknown as { click: () => void }).click();
+
+    expect(app.rowIds()).toEqual(['sec-table/f-derive']);
+  });
+
+  it('頁面沒有任何 flag 時不出現這個篩選器——空面板是死 UI', () => {
+    const page = makeCoveragePage();
+    for (const section of page.sections) {
+      for (const field of section.fields) delete field.flags;
+    }
+
+    const app = open(page);
+
+    expect(app.doc.querySelector('#filter-flag')).toBeNull();
+  });
+});

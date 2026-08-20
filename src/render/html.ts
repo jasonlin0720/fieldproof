@@ -69,6 +69,11 @@ export function renderHtml(page: FieldMapPage, stats: FieldMapStats, ctx: Render
   const { locale } = ctx;
   const { ui } = locale;
 
+  // 沒有任何欄位帶 flag 的頁面不渲染 flag 篩選器——空面板是死 UI。
+  const hasFlags = page.sections.some((section) =>
+    section.fields.some((field) => (field.flags?.length ?? 0) > 0),
+  );
+
   const css = readFileSync(join(ASSETS_DIR, 'app.css'), 'utf8');
   const js = readFileSync(join(ASSETS_DIR, 'app.js'), 'utf8');
 
@@ -181,7 +186,7 @@ ${css}
       </div>
 ${multiFilter('filter-section', ui.filterSection)}
 ${multiFilter('filter-query', ui.filterQuery)}
-${multiFilter('filter-source', ui.filterSource)}
+${multiFilter('filter-source', ui.filterSource)}${hasFlags ? multiFilter('filter-flag', ui.filterFlag) : ''}
 
       <span class="filters__label">${escapeHtml(ui.statusLabel)}</span>
       <div class="seg" role="group" aria-label="${escapeHtml(ui.statusAria)}">

@@ -153,12 +153,18 @@ silently orphans that field's review state. Rename only when you mean to reset i
 If you cannot trace a value to its source, do not guess a plausible one. Write what you do
 know, put the uncertainty in `note`, and flag it:
 
+- `unresolved` — you could not follow the chain; what you wrote is a guess
 - `fragile` — it works but rests on something brittle (string matching, array position)
 - `backend-pending` — the current behaviour is a workaround, the backend has not settled
 - `exception` — it deliberately breaks a convention the rest of the app follows
 
-A field marked `fragile` with an honest note is far more useful than a confident wrong `how`.
-If a chain is genuinely unresolvable, say so in your reply rather than burying it.
+`unresolved` is the one that matters here, because every other key on a field is an assertion.
+`source`, `how` and `display` are all required, and none of the six `source` values means "I
+don't know" — so a chain you could not follow gets written as though you had. A reviewer then
+ticks it off against your guess, and the tool has turned code archaeology into false confidence.
+Flag it, say in `note` what you did establish and where you lost the thread, and repeat it in
+your reply. The review tool can filter for `unresolved`, so an honest one costs the reader
+nothing and a hidden one costs them the whole page.
 
 ### `checks` only where the rule is not obvious
 

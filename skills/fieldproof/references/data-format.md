@@ -118,7 +118,7 @@ would otherwise name a query without saying when it fires.
 | `display` | ✔        | Formatting, units, and empty / null / zero handling                                                                                                           |
 | `query`   |          | A query id, or an array of them. Omit for values the frontend invents                                                                                         |
 | `checks`  |          | `[{ given, expect }]` — turns a display rule into concrete cases to tick off                                                                                  |
-| `flags`   |          | Any of `exception` / `backend-pending` / `fragile`                                                                                                            |
+| `flags`   |          | Any of `exception` / `backend-pending` / `fragile` / `unresolved`                                                                                             |
 | `note`    |          | Free-form note                                                                                                                                                |
 
 ### Stable identifiers
@@ -150,6 +150,13 @@ side; `display` and `checks` invalidate the _display_ side.
 | `exception`       | A deliberate break from a site-wide convention                          |
 | `backend-pending` | Current behaviour is a workaround; the backend has not settled          |
 | `fragile`         | Works, but rests on something brittle (string matching, array position) |
+| `unresolved`      | You could not trace the chain — this row is a guess, not a finding      |
+
+`unresolved` exists because every other key on a field is an assertion: `source`, `how` and
+`display` are all required, and none of the six `source` values means "I don't know". Without
+it, a chain you could not follow has to be written as though you had, and nobody reading the
+page six months later can tell the guesses from the findings. Pair it with a `note` saying what
+you did establish and where you lost the thread. The review tool can filter for it.
 
 **`section.kind`**: `card`, `chart`, `table`, `filter`, `form`
 

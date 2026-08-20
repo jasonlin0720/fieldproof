@@ -38,6 +38,14 @@ export const flagSchema = z.enum([
   'backend-pending',
   /** 易碎（如依賴字串格式比對） */
   'fragile',
+  /**
+   * 這條鏈沒追出來，本列的宣告是推測。
+   *
+   * `source` / `how` / `display` 都是必填，六個 source 值也全是斷言句——沒有這個標記時，
+   * 追不出來的欄位只能被迫寫一個看起來確定的答案，讀的人分不出哪幾格查證過。
+   * 那等於把 code archaeology 換成一份假裝確定的宣告，比沒有宣告更糟。
+   */
+  'unresolved',
 ]);
 
 /** 區塊形態。撐住各頁差異：儀表板類頁面多為 card，清單類頁面多為 filter + chart + table。 */

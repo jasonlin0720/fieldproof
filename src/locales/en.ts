@@ -43,6 +43,7 @@ export const en: Locale = {
     exception: { icon: '⚠', label: 'Deliberate deviation from the site-wide convention' },
     'backend-pending': { icon: '🕓', label: 'Backend undecided / current workaround' },
     fragile: { icon: '⚡', label: 'Fragile: relies on string matching and the like' },
+    unresolved: { icon: '❓', label: 'Chain not traced — this row is a guess, confirm it' },
   },
 
   interval: {
@@ -270,6 +271,7 @@ skill options:
     filterSection: 'Section',
     filterQuery: 'Query',
     filterSource: 'Source',
+    filterFlag: 'Flags',
     statusLabel: 'Status',
     statusAria: 'Review status',
     statusAll: 'All',

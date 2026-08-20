@@ -224,6 +224,8 @@ export function makeCoveragePage(): FieldMapPage {
             source: 'fe-derive',
             how: 'Looks up Q3 by the Q1 code',
             display: 'Falls back to the raw code',
+            flags: ['unresolved'],
+            note: 'Could not find where the lookup table is built.',
           },
           {
             id: 'f-const',

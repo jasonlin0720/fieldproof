@@ -73,6 +73,9 @@ Sixty fields is too many to hold at once. The controls above the table exist to 
   currently watching in the Network panel). Grouping by query is the one to use when you are
   working request by request.
 - **Section / Query / Source** — multi-select, each option showing how many fields it holds.
+- **Flags** — appears only when the page has flagged fields. `unresolved` is the one to check
+  first: it means whoever wrote the JSON could not trace that chain, so the row is a guess and
+  the ✓ you are about to give it would be worth nothing.
 - **Status** — _unverified_ to see what is left, _problems_ to review what you flagged,
   _definition changed_ to see what needs re-checking.
 - **Search** covers labels, response paths, how, display, and your own notes and observed values.

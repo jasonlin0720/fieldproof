@@ -234,3 +234,17 @@ describe('resp', () => {
   });
 });
 
+describe('flags', () => {
+  /**
+   * skill 明講「追不出來就別編」，但 `source` / `how` / `display` 都是必填、
+   * `source` 六個值全是斷言句——沒有 flag 能表達「這格是推測的」，讀的人就分不出
+   * 哪幾格查證過、哪幾格沒有，等於把 code archaeology 換成一份假裝確定的宣告。
+   */
+  it('unresolved 是合法的 flag——資料要說得出「這條鏈沒追出來」', () => {
+    expect(
+      loadWith((page) => {
+        page.sections[0]!.fields[0]!.flags = ['unresolved'];
+      }),
+    ).toBe('');
+  });
+});
