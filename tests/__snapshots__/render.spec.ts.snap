@@ -10,6 +10,7 @@ exports[`renderHtml > 逐字輸出維持不變 1`] = `
     <!-- 空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求 -->
     <link rel="icon" href="data:," />
     <!--
+      fieldproof:generated
       本檔由 \`pnpm demo\` 從 docs/demo/data/demo.json 生成，請勿手改。要改內容請改 JSON 後重跑。
     -->
     <style>
@@ -434,14 +435,25 @@ tr.group:first-child > td {
 
 /* 欄內容 */
 
+/*
+ * 列身不再可點（那會踩掉文字選取），這顆是唯一的展開入口，所以要撐滿整個儲存格。
+ * 用絕對定位而非 width/height 100%：儲存格高度由該列最高的欄決定，事先不知道。
+ */
+.cell-expand {
+  position: relative;
+}
+
 .expand {
-  width: 100%;
-  padding: 0;
+  position: absolute;
+  inset: 0;
+  padding: 8px 9px;
   border: 0;
   background: none;
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .expand:hover {
@@ -991,6 +1003,10 @@ tr.reconcile--conditional td {
           <summary class="multi__summary">取得方式 <span class="multi__count" style="display:none"></span></summary>
           <div class="multi__panel"></div>
         </details>
+        <details class="multi" id="filter-flag">
+          <summary class="multi__summary">標記 <span class="multi__count" style="display:none"></span></summary>
+          <div class="multi__panel"></div>
+        </details>
 
       <span class="filters__label">狀態</span>
       <div class="seg" role="group" aria-label="驗收狀態">
@@ -1042,7 +1058,7 @@ tr.reconcile--conditional td {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":60000,"note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":"—","source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"f0cb3002","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"}},"intervalLabels":{"60000":"每分鐘"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"不輪詢"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60}],"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2},"ui":{"pageTitle":"{title} 欄位對照 · 驗收","heading":"{title} 欄位對照","generatedComment":"本檔由 \`{command}\` 從 {dataPath} 生成，請勿手改。要改內容請改 JSON 後重跑。","indexTitle":"欄位對照","indexLead":"每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。","indexSource":"資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。","indexRules":"通用規則見","metaSections":"{n} 區塊","metaFields":"{n} 欄位","metaQueries":"{n} 查詢（{polling} 輪詢，單次全量 {http} 支 HTTP；每小時 {perHour} 支）","metaAudited":"盤點 {date}","progressVerified":"已驗","progressNoProblem":"無問題","progressProblem":"{n} 有問題","progressFiltered":"（篩選中：{n}）","btnReconcile":"Network 對帳","btnExport":"匯出問題清單","btnReset":"重置","btnClose":"關閉","btnCopy":"複製","btnCopyFilter":"複製篩選","btnCopyNetworkFilter":"複製 Network 篩選","copyFilterTitle":"複製「{filter}」貼進 DevTools Network filter","searchPlaceholder":"搜尋欄位 / response / 取值方式…","searchAria":"搜尋","groupLabel":"分組","groupAria":"分組方式","groupBySection":"依區塊","groupByQuery":"依查詢","filterSection":"區塊","filterQuery":"查詢","filterSource":"取得方式","statusLabel":"狀態","statusAria":"驗收狀態","statusAll":"全部","statusUnverified":"只看未驗","statusProblem":"只看有問題","statusStale":"定義已變更","colField":"UI 欄位","colQuery":"查詢","colResp":"response 欄位","colExpect":"預期取值 / 顯示","colActual":"畫面實際值","colData":"資料","colDisplay":"顯示","colNote":"備註","sideData":"資料","sideDisplay":"顯示","markOk":"正確","markNg":"有問題","markStaleHint":"這一側的定義在上次標記後改過了，請重驗","respNone":"—（不來自 API）","expandAria":"展開細節","staleTagTitle":"上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗","staleBoth":"定義已變更","staleData":"取值定義已變更","staleDisplay":"顯示定義已變更","checksTag":"{n} 檢查點","checksTagTitle":"展開可見 {n} 條驗證檢查點","actualPlaceholder":"畫面上看到的值","actualAria":"畫面實際值","notePlaceholder":"備註","noteAria":"備註","detailConcurrent":"併發 {n} 支","detailFilter":"篩選字串","detailEndpoint":"端點","detailSdk":"SDK","detailEnabledWhen":"啟用條件","detailFilterNote":"篩選提醒：","detailChecksTitle":"怎麼驗（{n} 條）","detailChecksGiven":"給定","detailChecksExpect":"畫面應該","detailEmptyRule":"空狀態：","detailNoteTitle":"註記","detailNoApi":"此欄位不來自任何 API，由前端生成。","groupProgress":"{done}/{total} 已驗","groupNg":"{n} 有問題","groupEmptyInfo":"ⓘ 空狀態","groupEmptyTitle":"空狀態：{rule}","groupNoQuery":"無查詢（前端生成）","groupNoQueryMeta":"X 軸 labels、硬編單位、local UI state","emptyState":"沒有符合條件的欄位","notesHeading":"已知落差 / 注意事項","reconcileTitle":"Network 對帳清單","reconcileLead":"進頁後 Network 面板應出現 {base} request（不含條件性請求與瀏覽器自身的資源請求）。","reconcileLoad":"其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支","reconcileBreakdown":"（{parts}）","reconcilePartJoin":"；","reconcilePart":"{label} × {http} 支 = {perHour}","reconcileColId":"#","reconcileColEndpoint":"端點","reconcileColFilter":"Network 篩選字串","reconcileColCount":"支數","reconcileColOrigin":"來源","reconcileColUsedBy":"餵給","reconcileCount":"{n} 支","reconcileNoField":"不對應任何欄位","reconcileNoFilter":"未設定","reconcileConditional":"條件性請求，共 {n} 支：","reportSummary":"已驗 {done}/{total} · 有問題 {problems}","reportAllPass":"全數通過，無標記為有問題的欄位。","reportQuery":"- 查詢：{value}","reportQueryNone":"- 查詢：—（前端生成）","reportExpectValue":"- 預期取值：{source} —— {how}","reportExpectDisplay":"- 預期顯示：{display}","reportActual":"- 畫面實際值：{value}","reportFailed":"- 問題：{sides} ✗","reportNote":"- 備註：{note}","toastCopied":"已複製「{text}」，貼進 Network filter","toastCopyFailed":"複製失敗","toastReportCopied":"問題清單已複製為 markdown","toastReportFailed":"複製失敗，請改用瀏覽器主控台","toastReset":"已清空驗收標記","confirmReset":"確定清空全部驗收標記？目前已驗 {done}/{total}，此動作無法復原。","warnStorage":"無法寫入 localStorage"}}</script>
+    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":60000,"note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":null,"source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"7ae33f36","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"},"unresolved":{"icon":"❓","label":"來源未追出，本列為推測，需人工確認"}},"namespace":null,"intervalLabels":{"60000":"每分鐘"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"不輪詢"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60}],"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2},"ui":{"pageTitle":"{title} 欄位對照 · 驗收","heading":"{title} 欄位對照","generatedComment":"本檔由 \`{command}\` 從 {dataPath} 生成，請勿手改。要改內容請改 JSON 後重跑。","faviconComment":"空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求","indexTitle":"欄位對照","indexLead":"每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。","indexSource":"資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。","indexColPage":"頁面","indexColRoute":"路由","indexColSections":"區塊","indexColFields":"欄位","indexColQueries":"查詢","indexColLoad":"輪詢負載（支 HTTP）","indexColAudited":"盤點日","indexColMarkdown":"LLM 版","indexQueries":"{n}（{polling} 輪詢）","indexLoad":"每小時 {n}","metaSections":"{n} 區塊","metaFields":"{n} 欄位","metaQueries":"{n} 查詢（{polling} 輪詢，單次全量 {http} 支 HTTP；每小時 {perHour} 支）","metaAudited":"盤點 {date}","progressVerified":"已驗","progressNoProblem":"無問題","progressProblem":"{n} 有問題","progressFiltered":"（篩選中：{n}）","btnReconcile":"Network 對帳","btnExport":"匯出問題清單","btnReset":"重置","btnClose":"關閉","btnCopy":"複製","btnCopyFilter":"複製篩選","btnCopyNetworkFilter":"複製 Network 篩選","copyFilterTitle":"複製「{filter}」貼進 DevTools Network filter","searchPlaceholder":"搜尋欄位 / response / 取值方式…","searchAria":"搜尋","groupLabel":"分組","groupAria":"分組方式","groupBySection":"依區塊","groupByQuery":"依查詢","filterSection":"區塊","filterQuery":"查詢","filterSource":"取得方式","filterFlag":"標記","statusLabel":"狀態","statusAria":"驗收狀態","statusAll":"全部","statusUnverified":"只看未驗","statusProblem":"只看有問題","statusStale":"定義已變更","colField":"UI 欄位","colQuery":"查詢","colResp":"response 欄位","colExpect":"預期取值 / 顯示","colActual":"畫面實際值","colData":"資料","colDisplay":"顯示","colNote":"備註","sideData":"資料","sideDisplay":"顯示","markOk":"正確","markNg":"有問題","markStaleHint":"這一側的定義在上次標記後改過了，請重驗","respNone":"—（不來自 API）","expandAria":"展開細節","staleTagTitle":"上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗","staleBoth":"定義已變更","staleData":"取值定義已變更","staleDisplay":"顯示定義已變更","checksTag":"{n} 檢查點","checksTagTitle":"展開可見 {n} 條驗證檢查點","actualPlaceholder":"畫面上看到的值","actualAria":"畫面實際值","notePlaceholder":"備註","noteAria":"備註","detailConcurrent":"併發 {n} 支","detailFilter":"篩選字串","detailEndpoint":"端點","detailSdk":"SDK","detailEnabledWhen":"啟用條件","detailFilterNote":"篩選提醒：","detailChecksTitle":"怎麼驗（{n} 條）","detailChecksGiven":"給定","detailChecksExpect":"畫面應該","detailEmptyRule":"空狀態：","detailNoteTitle":"註記","detailNoApi":"此欄位不來自任何 API，由前端生成。","groupProgress":"{done}/{total} 已驗","groupNg":"{n} 有問題","groupEmptyInfo":"ⓘ 空狀態","groupEmptyTitle":"空狀態：{rule}","groupNoQuery":"無查詢（前端生成）","groupNoQueryMeta":"X 軸 labels、硬編單位、local UI state","emptyState":"沒有符合條件的欄位","notesHeading":"已知落差 / 注意事項","reconcileTitle":"Network 對帳清單","reconcileLead":"進頁後 Network 面板應出現 {base} request（不含條件性請求與瀏覽器自身的資源請求）。","reconcileLoad":"其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支{breakdown}。","reconcileBreakdown":"（{parts}）","reconcilePart":"{label} × {http} 支 = {perHour}","reconcileColId":"#","reconcileColEndpoint":"端點","reconcileColFilter":"Network 篩選字串","reconcileColCount":"支數","reconcileColOrigin":"來源","reconcileColUsedBy":"餵給","reconcileCount":"{n} 支","reconcileNoField":"不對應任何欄位","reconcileNoFilter":"未設定","reconcileConditional":"條件性請求，共 {n} 支：","reportHeading":"## {title} 驗收問題清單","reportSummary":"已驗 {done}/{total} · 有問題 {problems}","reportSection":"### {section} · {field}","reportAllPass":"全數通過，無標記為有問題的欄位。","reportQuery":"- 查詢：{id} \`{endpoint}\`（{params}）","reportQueryNone":"- 查詢：—（前端生成）","reportResp":"- response：\`{value}\`","reportExpectValue":"- 預期取值：{source} —— {how}","reportExpectDisplay":"- 預期顯示：{display}","reportActual":"- 畫面實際值：\`{value}\`","reportFailed":"- 問題：{sides} ✗","reportNote":"- 備註：{note}","toastCopied":"已複製「{text}」，貼進 Network filter","toastCopyFailed":"複製失敗","toastReportCopied":"問題清單已複製為 markdown","toastReportFailed":"複製失敗，請改用瀏覽器主控台","toastReset":"已清空驗收標記","confirmReset":"確定清空全部驗收標記？目前已驗 {done}/{total}，此動作無法復原。","warnStorage":"無法寫入 localStorage","joinList":"、","joinSemi":"；","joinMeta":" ・ "}}</script>
     <script>
 /* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
 (() => {
@@ -1051,16 +1067,22 @@ tr.reconcile--conditional td {
   const PAGE = JSON.parse(document.getElementById('fieldproof-data').textContent);
   const T = PAGE.ui;
 
-  /** \`{name}\` 佔位符代入（與產生端 format.ts 的 fmt 同規則）。 */
+  /** \`{name}\` 與 \`{name|單數|複數}\` 代入（與產生端 format.ts 的 fmt 同規則）。 */
+  const SLOT = /\\{(\\w+)(?:\\|([^|{}]*)\\|([^|{}]*))?\\}/g;
   const t = (key, vars) =>
-    (T[key] || '').replace(/\\{(\\w+)\\}/g, (_, k) =>
-      vars && Object.hasOwn(vars, k) ? String(vars[k]) : '',
-    );
+    (T[key] || '').replace(SLOT, (_, k, one, other) => {
+      if (!vars || !Object.hasOwn(vars, k)) return '';
+      if (one === undefined || other === undefined) return String(vars[k]);
+      return Number(vars[k]) === 1 ? one : other;
+    });
 
   /** 每小時支數：整數不留小數點，否則取一位（與產生端 formatRate 同規則）。 */
   const fmtRate = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
-  const STORE_KEY = \`fieldproof:v1:\${PAGE.page}\`;
-  const PREF_KEY = \`fieldproof:v1:\${PAGE.page}:prefs\`;
+  // 同一個瀏覽器 origin 下（\`file://\` 全部算同一個），不同專案的同名頁面會互相覆蓋，
+  // 故由設定的 namespace 隔開；未設定時維持舊行為，只以頁名區分。
+  const SCOPE = PAGE.namespace ? \`\${PAGE.namespace}:\${PAGE.page}\` : PAGE.page;
+  const STORE_KEY = \`fieldproof:v1:\${SCOPE}\`;
+  const PREF_KEY = \`fieldproof:v1:\${SCOPE}:prefs\`;
 
   const SOURCE_LABELS = PAGE.sourceLabels;
   const FLAG_META = PAGE.flagMeta;
@@ -1077,6 +1099,7 @@ tr.reconcile--conditional td {
     sections: new Set(),
     queries: new Set(),
     sources: new Set(),
+    flags: new Set(),
     status: 'all',
     expanded: new Set(),
   };
@@ -1121,8 +1144,10 @@ tr.reconcile--conditional td {
     }
   }
 
+  const ROW_BY_ID = new Map(ROWS.map((row) => [row.id, row]));
+
   const markOf = (id) => marks[id] || {};
-  const fieldOf = (id) => ROWS.find((row) => row.id === id)?.field;
+  const fieldOf = (id) => ROW_BY_ID.get(id)?.field;
 
   const HASH_KEY = { data: 'dataHash', display: 'displayHash' };
 
@@ -1177,6 +1202,8 @@ tr.reconcile--conditional td {
     }
 
     if (state.sources.size && !state.sources.has(row.field.source)) return false;
+
+    if (state.flags.size && !(row.field.flags || []).some((f) => state.flags.has(f))) return false;
 
     if (state.status === 'unverified' && isVerified(row.id)) return false;
     if (state.status === 'problem' && !hasProblem(row.id)) return false;
@@ -1244,13 +1271,22 @@ tr.reconcile--conditional td {
   /** 極簡 inline markdown：只處理 **粗體**，供 checks 標出「不是 0」這類重點。 */
   const inlineMd = (text) => text.replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>');
 
+  /**
+   * 精簡的端點顯示：省略 \`GET \` 前綴，其餘方法保留。
+   *
+   * 這是刻意的不對稱而非疏漏——GET 是預設，寫出來只佔寬度；POST / DELETE 在 Network
+   * 對帳時正是要一眼看見的資訊，剝掉會弄丟它。詳情類欄位（明細框、markdown 查詢表）
+   * 一律顯示完整端點。
+   */
+  const pathLabel = (endpoint) => endpoint.replace(/^GET /, '');
+
   function srcChip(source) {
     return \`<span class="src src--\${esc(source)}">\${esc(SOURCE_LABELS[source])}</span>\`;
   }
 
   function flagIcons(field) {
     if (!field.flags || !field.flags.length) return '';
-    const title = field.flags.map((f) => FLAG_META[f].label).join('；');
+    const title = field.flags.map((f) => FLAG_META[f].label).join(T.joinSemi);
     const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
     return \`<span class="field-flags" title="\${esc(title)}">\${icons}</span>\`;
   }
@@ -1286,30 +1322,35 @@ tr.reconcile--conditional td {
     );
   }
 
+  /**
+   * 失效標籤。整表渲染與 patchRow 共用同一份——patchRow 曾經只會**移除**標籤，
+   * 於是「兩側都失效 → 只重標資料側」之後，文字仍停在「定義已變更」而非「顯示定義已變更」。
+   */
+  function staleTagHtml(id) {
+    const data = isStaleSide(id, 'data');
+    const display = isStaleSide(id, 'display');
+    if (!data && !display) return '';
+
+    const label = data && display ? T.staleBoth : data ? T.staleData : T.staleDisplay;
+    return \`<span class="stale-tag" title="\${esc(T.staleTagTitle)}">⟳ \${esc(label)}</span>\`;
+  }
+
   function rowHtml(row) {
     const m = markOf(row.id);
     const expanded = state.expanded.has(row.id);
     const stale = isStale(row.id);
     const resp =
-      row.field.resp === '—'
+      row.field.resp === null
         ? \`<span class="resp resp--none">\${esc(T.respNone)}</span>\`
         : \`<span class="resp">\${esc(row.field.resp)}</span>\`;
 
     return (
       \`<tr class="row\${expanded ? ' row--expanded' : ''}\${hasProblem(row.id) ? ' row--ng' : ''}\` +
       \`\${stale ? ' row--stale' : ''}" data-id="\${esc(row.id)}">\` +
-      \`<td><button class="expand" type="button" data-expand="\${esc(row.id)}" \` +
+      \`<td class="cell-expand"><button class="expand" type="button" data-expand="\${esc(row.id)}" \` +
       \`aria-expanded="\${expanded}" aria-label="\${esc(T.expandAria)}">\${expanded ? '▾' : '▸'}</button></td>\` +
       \`<td><span class="field-label">\${esc(row.field.label)}</span>\${flagIcons(row.field)}\` +
-      (stale
-        ? \`<span class="stale-tag" title="\${esc(T.staleTagTitle)}">⟳ \${
-            isStaleSide(row.id, 'data') && isStaleSide(row.id, 'display')
-              ? T.staleBoth
-              : isStaleSide(row.id, 'data')
-                ? T.staleData
-                : T.staleDisplay
-          }</span>\`
-        : '') +
+      staleTagHtml(row.id) +
       (row.field.checks
         ? \`<span class="checks-tag" title="\${esc(t('checksTagTitle', { n: row.field.checks.length }))}">\${esc(t('checksTag', { n: row.field.checks.length }))}</span>\`
         : '') +
@@ -1331,7 +1372,8 @@ tr.reconcile--conditional td {
     );
   }
 
-  function detailHtml(row) {
+  /** 明細內容本體，不含表格列外殼——整表渲染與局部插入共用同一份。 */
+  function detailGridHtml(row) {
     const boxes = row.queryIds.map((id) => {
       const query = PAGE.queries[id];
       if (!query) return '';
@@ -1407,26 +1449,58 @@ tr.reconcile--conditional td {
       );
     }
 
-    return \`<tr class="detail"><td colspan="9"><div class="detail__grid">\${boxes.join('')}</div></td></tr>\`;
+    return \`<div class="detail__grid">\${boxes.join('')}</div>\`;
+  }
+
+  /** 整表渲染用：連外殼一起輸出，直接串進 tbody 的 innerHTML。 */
+  function detailHtml(row) {
+    return \`<tr class="detail"><td colspan="9">\${detailGridHtml(row)}</td></tr>\`;
+  }
+
+  /**
+   * 局部插入用：以 DOM API 建列。
+   *
+   * 不用 insertAdjacentHTML——在 \`<tr>\` 旁插入 \`<tr>\` 要靠解析器的表格上下文，各家實作
+   * 不一致（happy-dom 會把外殼整個丟掉）。createElement 沒有這個問題。
+   */
+  function detailRowEl(row) {
+    const tr = document.createElement('tr');
+    tr.className = 'detail';
+
+    const td = document.createElement('td');
+    td.colSpan = 9;
+    td.innerHTML = detailGridHtml(row);
+
+    tr.appendChild(td);
+    return tr;
+  }
+
+  /**
+   * 分組進度。groupHeadHtml 的初繪與 patchGroupProgress 的局部更新共用同一份——
+   * 曾經各寫一份，結果局部更新那份漏掉 locale，標記前後看到的字串來源不同。
+   */
+  function progressHtml(ids) {
+    const done = ids.filter(isVerified).length;
+    const ng = ids.filter(hasProblem).length;
+    return (
+      t('groupProgress', { done, total: ids.length }) +
+      (ng ? \` · <b style="color:var(--ng)">\${esc(t('groupNg', { n: ng }))}</b>\` : '')
+    );
   }
 
   function groupHeadHtml(group) {
-    const done = group.rows.filter((row) => isVerified(row.id)).length;
-    const ng = group.rows.filter((row) => hasProblem(row.id)).length;
-    const progress =
-      t('groupProgress', { done, total: group.rows.length }) +
-      (ng ? \` · <b style="color:var(--ng)">\${esc(t('groupNg', { n: ng }))}</b>\` : '');
+    const progress = progressHtml(group.rows.map((row) => row.id));
 
     if (group.kind === 'section') {
       const section = group.section;
       const meta = Object.entries(section.meta || {})
         .map(([k, v]) => \`\${esc(k)} \${esc(v)}\`)
-        .join(' ・ ');
+        .join(T.joinMeta);
       return (
         \`<tr class="group"><td colspan="9">\` +
         \`<div class="group__head"><span class="group__title">\${esc(section.title)}</span>\` +
         \`<span class="group__key">\${esc(section.key)}</span>\` +
-        \`<span class="group__meta">\${esc(PAGE.sectionKindLabels[section.kind])}\${meta ? ' ・ ' + meta : ''}</span>\` +
+        \`<span class="group__meta">\${esc(PAGE.sectionKindLabels[section.kind])}\${meta ? T.joinMeta + meta : ''}</span>\` +
         (section.emptyRule
           ? \`<span class="group__info" title="\${esc(t('groupEmptyTitle', { rule: section.emptyRule }))}">\${esc(T.groupEmptyInfo)}</span>\`
           : '') +
@@ -1451,9 +1525,9 @@ tr.reconcile--conditional td {
     return (
       \`<tr class="group"><td colspan="9">\` +
       \`<div class="group__head"><span class="group__title">\${esc(group.key)}</span>\` +
-      \`<span class="group__key">\${esc(query.endpoint)} ・ \${esc(PAGE.refetchLabels[group.key])}\${
+      \`<span class="group__key">\${esc(query.endpoint)}\${T.joinMeta}\${esc(PAGE.refetchLabels[group.key])}\${
         query.httpCount && query.httpCount > 1
-          ? \` ・ \${esc(t('detailConcurrent', { n: query.httpCount }))}\`
+          ? \`\${T.joinMeta}\${esc(t('detailConcurrent', { n: query.httpCount }))}\`
           : ''
       }</span>\` +
       \`<span class="group__meta" title="\${esc(params)}">\` +
@@ -1498,6 +1572,34 @@ tr.reconcile--conditional td {
   }
 
   /**
+   * 展開 / 收合明細。
+   *
+   * 不走 render()：重繪整個 tbody 會抹掉使用者當下的**文字選取**與輸入焦點。驗收時
+   * 常要把 response 路徑或篩選字串複製進 DevTools，選到一半被抹掉等於這個介面不能用。
+   * 與 patchRow() 同一條理由，只是當初只想到輸入框失焦。
+   */
+  function toggleExpand(id) {
+    const rowEl = document.querySelector(\`tr.row[data-id="\${id}"]\`);
+    const row = ROW_BY_ID.get(id);
+    if (!rowEl || !row) return;
+
+    const willExpand = !state.expanded.has(id);
+    if (willExpand) {
+      state.expanded.add(id);
+      rowEl.insertAdjacentElement('afterend', detailRowEl(row));
+    } else {
+      state.expanded.delete(id);
+      const detail = rowEl.nextElementSibling;
+      if (detail && detail.classList.contains('detail')) detail.remove();
+    }
+
+    rowEl.classList.toggle('row--expanded', willExpand);
+    const btn = rowEl.querySelector('[data-expand]');
+    btn.setAttribute('aria-expanded', String(willExpand));
+    btn.textContent = willExpand ? '▾' : '▸';
+  }
+
+  /**
    * 標記後的局部更新：重繪整個 tbody 會讓正在編輯的備註 / 實際值輸入框失焦，
    * 故只改動該列自身、其所屬分組的進度與頁首進度。
    * 只有當篩選條件與標記狀態相關（只看未驗 / 只看有問題）時，該列可能要進出視野，
@@ -1517,8 +1619,13 @@ tr.reconcile--conditional td {
       const kind = marks.querySelector('.mark')?.dataset.kind;
       marks.classList.toggle('marks--stale', kind ? isStaleSide(id, kind) : false);
     }
+    // 標記只會讓某一側「重新有效」，不會讓原本不失效的列變失效，故只需更新或移除。
     const staleTag = rowEl.querySelector('.stale-tag');
-    if (staleTag && !isStale(id)) staleTag.remove();
+    if (staleTag) {
+      const html = staleTagHtml(id);
+      if (html) staleTag.outerHTML = html;
+      else staleTag.remove();
+    }
 
     patchGroupProgress(rowEl);
     renderProgress(visibleCount);
@@ -1538,17 +1645,14 @@ tr.reconcile--conditional td {
       if (cursor.classList.contains('row')) ids.push(cursor.dataset.id);
     }
 
-    const done = ids.filter(isVerified).length;
-    const ng = ids.filter(hasProblem).length;
-    groupEl.querySelector('.group__progress').innerHTML =
-      \`\${done}/\${ids.length} 已驗\` +
-      (ng ? \` · <b style="color:var(--ng)">\${esc(t('groupNg', { n: ng }))}</b>\` : '');
+    groupEl.querySelector('.group__progress').innerHTML = progressHtml(ids);
   }
 
   // ---------- 多選篩選器 ----------
 
   function buildMulti(id, label, items, target) {
     const host = document.getElementById(id);
+    if (!host) return;
     host.querySelector('.multi__panel').innerHTML = items
       .map(
         (item) =>
@@ -1586,7 +1690,7 @@ tr.reconcile--conditional td {
     const problems = ROWS.filter((row) => hasProblem(row.id));
     const done = ROWS.filter((row) => isVerified(row.id)).length;
     const lines = [
-      \`## \${PAGE.title} 驗收問題清單\`,
+      t('reportHeading', { title: PAGE.title }),
       '',
       t('reportSummary', { done, problems: problems.length, total: ROWS.length }),
       '',
@@ -1604,22 +1708,22 @@ tr.reconcile--conditional td {
         m.display === 'ng' ? T.sideDisplay : null,
       ]
         .filter(Boolean)
-        .join('、');
-      lines.push(\`### \${row.section.title} · \${row.field.label}\`);
+        .join(T.joinList);
+      lines.push(t('reportSection', { field: row.field.label, section: row.section.title }));
       for (const id of row.queryIds) {
         const query = PAGE.queries[id];
         const params = Object.entries(query.params)
           .map(([k, v]) => \`\${k}=\${v}\`)
           .join(' · ');
-        lines.push(\`- 查詢：\${id} \\\`\${query.endpoint}\\\`（\${params}）\`);
+        lines.push(t('reportQuery', { endpoint: query.endpoint, id, params }));
       }
       if (!row.queryIds.length) lines.push(T.reportQueryNone);
-      lines.push(\`- response：\\\`\${row.field.resp}\\\`\`);
+      lines.push(t('reportResp', { value: row.field.resp }));
       lines.push(
         t('reportExpectValue', { how: row.field.how, source: SOURCE_LABELS[row.field.source] }),
       );
       lines.push(t('reportExpectDisplay', { display: row.field.display }));
-      if (m.actual) lines.push(\`- 畫面實際值：\\\`\${m.actual}\\\`\`);
+      if (m.actual) lines.push(t('reportActual', { value: m.actual }));
       lines.push(t('reportFailed', { sides: failed }));
       if (m.note) lines.push(t('reportNote', { note: m.note }));
       lines.push('');
@@ -1676,11 +1780,13 @@ tr.reconcile--conditional td {
         const count = query.httpCount || 1;
         const sections = [...new Set(usedBy.get(id) || [])];
         const origin = query.origin ? PAGE.originLabels[query.origin] : PAGE.originLabels.card;
-        const where = sections.length ? sections.join('、') : \`<i>\${esc(T.reconcileNoField)}</i>\`;
+        const where = sections.length
+          ? sections.join(T.joinList)
+          : \`<i>\${esc(T.reconcileNoField)}</i>\`;
         return (
           \`<tr class="\${query.conditional ? 'reconcile--conditional' : ''}">\` +
           \`<td><b>\${esc(id)}</b></td>\` +
-          \`<td><code>\${esc(query.endpoint.replace(/^GET /, ''))}</code></td>\` +
+          \`<td><code>\${esc(pathLabel(query.endpoint))}</code></td>\` +
           \`<td>\` +
           (query.filter
             ? \`<code class="reconcile__filter">\${esc(query.filter)}</code>\` +
@@ -1698,18 +1804,14 @@ tr.reconcile--conditional td {
     const conditional = entries.filter(([, q]) => q.conditional);
     const conditionalNote = conditional.length
       ? \`<p class="reconcile__note"><sup>*</sup> \${esc(t('reconcileConditional', { n: PAGE.stats.conditionalHttpCount }))}\` +
-        conditional.map(([id, q]) => \`<b>\${esc(id)}</b> \${esc(q.enabledWhen || '')}\`).join('；') +
+        conditional
+          .map(([id, q]) => \`<b>\${esc(id)}</b> \${esc(q.enabledWhen || '')}\`)
+          .join(T.joinSemi) +
         \`</p>\`
       : '';
 
-    document.getElementById('reconcile-body').innerHTML =
-      \`<p class="reconcile__lead">\` +
-      t('reconcileLead', { base: \`<b>\${PAGE.stats.baseHttpCount} 支</b>\` }) +
-      t('reconcileLoad', {
-        perHour: fmtRate(PAGE.stats.perHour),
-        polling: PAGE.stats.pollingHttpCount,
-      }) +
-      (PAGE.stats.byInterval.length > 1
+    const breakdown =
+      PAGE.stats.byInterval.length > 1
         ? t('reconcileBreakdown', {
             parts: PAGE.stats.byInterval
               .map((b) =>
@@ -1719,10 +1821,21 @@ tr.reconcile--conditional td {
                   perHour: fmtRate(b.perHour),
                 }),
               )
-              .join(T.reconcilePartJoin),
+              .join(T.joinSemi),
           })
-        : '') +
-      \`。</p>\` +
+        : '';
+
+    document.getElementById('reconcile-body').innerHTML =
+      \`<p class="reconcile__lead">\` +
+      t('reconcileLead', {
+        base: \`<b>\${esc(t('reconcileCount', { n: PAGE.stats.baseHttpCount }))}</b>\`,
+      }) +
+      t('reconcileLoad', {
+        breakdown,
+        perHour: fmtRate(PAGE.stats.perHour),
+        polling: PAGE.stats.pollingHttpCount,
+      }) +
+      \`</p>\` +
       \`<table class="reconcile"><thead><tr>\` +
       \`<th>\${esc(T.reconcileColId)}</th><th>\${esc(T.reconcileColEndpoint)}</th>\` +
       \`<th>\${esc(T.reconcileColFilter)}</th><th>\${esc(T.reconcileColCount)}</th>\` +
@@ -1766,18 +1879,10 @@ tr.reconcile--conditional td {
       return;
     }
 
+    // 只有展開鈕能展開。整列可點的話，拖曳選取與雙擊選字都會被當成展開意圖——
+    // 兩者的 mousedown / mouseup 都落在同一列，瀏覽器照樣發 click，擋不掉。
     const expandBtn = event.target.closest('[data-expand]');
-    const rowEl = event.target.closest('tr.row');
-    const id = expandBtn
-      ? expandBtn.dataset.expand
-      : rowEl && !event.target.closest('input')
-        ? rowEl.dataset.id
-        : null;
-    if (id) {
-      if (state.expanded.has(id)) state.expanded.delete(id);
-      else state.expanded.add(id);
-      render();
-    }
+    if (expandBtn) toggleExpand(expandBtn.dataset.expand);
   });
 
   let inputTimer;
@@ -1870,7 +1975,7 @@ tr.reconcile--conditional td {
     [
       ...Object.keys(PAGE.queries).map((id) => ({
         value: id,
-        label: \`\${id} · \${PAGE.queries[id].endpoint.replace(/^GET /, '')}\`,
+        label: \`\${id} · \${pathLabel(PAGE.queries[id].endpoint)}\`,
         count: queryCounts.get(id) || 0,
       })),
       { value: '__none__', label: T.groupNoQuery, count: queryCounts.get('__none__') || 0 },
@@ -1886,6 +1991,20 @@ tr.reconcile--conditional td {
       .map((key) => ({ value: key, label: SOURCE_LABELS[key], count: sourceCounts.get(key) || 0 }))
       .filter((item) => item.count > 0),
     state.sources,
+  );
+
+  const flagCounts = countBy((row) => row.field.flags || []);
+  buildMulti(
+    'filter-flag',
+    T.filterFlag,
+    Object.keys(FLAG_META)
+      .map((key) => ({
+        value: key,
+        label: \`\${FLAG_META[key].icon} \${FLAG_META[key].label}\`,
+        count: flagCounts.get(key) || 0,
+      }))
+      .filter((item) => item.count > 0),
+    state.flags,
   );
 
   for (const btn of document.querySelectorAll('[data-group]')) {
@@ -1909,6 +2028,7 @@ exports[`renderIndex > 逐字輸出維持不變 1`] = `
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>欄位對照</title>
     <link rel="icon" href="data:," />
+    <!-- fieldproof:generated -->
     <!-- 本檔由 \`pnpm demo\` 從 docs/demo/data 生成，請勿手改。要改內容請改 JSON 後重跑。 -->
     <style>
 /* fieldproof 驗收介面樣式。由 render/html.ts inline 進生成的 HTML，無外部請求。 */
@@ -2332,14 +2452,25 @@ tr.group:first-child > td {
 
 /* 欄內容 */
 
+/*
+ * 列身不再可點（那會踩掉文字選取），這顆是唯一的展開入口，所以要撐滿整個儲存格。
+ * 用絕對定位而非 width/height 100%：儲存格高度由該列最高的欄決定，事先不知道。
+ */
+.cell-expand {
+  position: relative;
+}
+
 .expand {
-  width: 100%;
-  padding: 0;
+  position: absolute;
+  inset: 0;
+  padding: 8px 9px;
   border: 0;
   background: none;
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .expand:hover {
@@ -2881,8 +3012,7 @@ tr.reconcile--conditional td {
       <h1>欄位對照</h1>
       <p>
         每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。<br />
-        資料來源為 <code class="resp">docs/demo/data</code>/*.json，本頁與各頁 HTML / markdown 皆由 <code class="resp">pnpm demo</code> 生成。 通用規則見
-        <a class="index__link" href="./README.md">README.md</a>。
+        資料來源為 <code class="resp">docs/demo/data</code>/*.json，本頁與各頁 HTML / markdown 皆由 <code class="resp">pnpm demo</code> 生成。
       </p>
       <table>
         <thead>
@@ -2917,16 +3047,15 @@ tr.reconcile--conditional td {
 `;
 
 exports[`renderMarkdown > 逐字輸出維持不變 1`] = `
-"# 示範頁（\`/demo\`）欄位對照
+"<!-- fieldproof:generated -->
+
+# 示範頁（\`/demo\`）欄位對照
 
 > ⚠️ **本檔由 \`pnpm demo\` 從 \`docs/demo/data/demo.json\` 生成，請勿手改**
 > ——任何手動編輯都會在下次重跑時被覆蓋。要改內容請改 JSON 後重跑。
 >
 > **人要驗收請開 [\`demo.html\`](./demo.html)**（可勾選、可篩選、可匯出問題清單）；
 > 本 markdown 是給 LLM 讀與 \`git diff\` 審閱用的。
->
-> 跨頁通用規則（回應 envelope、空值退場、數字格式、刷新機制等）見同目錄
-> [README.md](./README.md)，本檔不重述。
 >
 > 盤點日期：**2026-08-19**（「對過程式碼」的日期，不是「驗收過」的日期）
 >
@@ -2941,6 +3070,7 @@ exports[`renderMarkdown > 逐字輸出維持不變 1`] = `
 - 其中 **1 個查詢參與輪詢**，單次全量刷新 = **1 支 HTTP**
 - 輪詢負載：每小時 **60 支**
 - **Network 對帳基準：進頁應出現 1 支 request**，另有 3 支條件性請求（卡片隱藏時不會出現）
+- 欄位分佈：API 直取 1 ・ 前端硬編 1 ・ 前端換算 1
 
 > 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。
 > 若分頁常駐且背景仍刷新，實際負載需再乘上同時在線的分頁數。
@@ -2994,16 +3124,5 @@ exports[`renderMarkdown > 逐字輸出維持不變 1`] = `
 | 跨查詢欄位 | Q1 ＋ Q2 | \`items[].x\` | **前端換算**：以 Q1 的 id 對 Q2 查表 | 查無對應時顯示原始 id |
 
 ---
-
-## 「後端算好」vs「前端算的」速查
-
-要改動取值邏輯時先看這張表——左欄改不了（要找後端），右欄改得了（在前端）。
-
-欄位分佈：API 直取 1 ・ 前端硬編 1 ・ 前端換算 1
-
-| 後端算好、前端直取 | 前端自己算 |
-| ------------------ | ---------- |
-| 區塊一・欄位一（\`totals.x\`） | 區塊二・純前端欄位（\`—\`） |
-| — | 區塊二・跨查詢欄位（\`items[].x\`） |
 "
 `;

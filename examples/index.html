@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>欄位對照</title>
     <link rel="icon" href="data:," />
+    <!-- fieldproof:generated -->
     <!-- 本檔由 `pnpm example` 從 data 生成，請勿手改。要改內容請改 JSON 後重跑。 -->
     <style>
 /* fieldproof 驗收介面樣式。由 render/html.ts inline 進生成的 HTML，無外部請求。 */
@@ -428,14 +429,25 @@ tr.group:first-child > td {
 
 /* 欄內容 */
 
+/*
+ * 列身不再可點（那會踩掉文字選取），這顆是唯一的展開入口，所以要撐滿整個儲存格。
+ * 用絕對定位而非 width/height 100%：儲存格高度由該列最高的欄決定，事先不知道。
+ */
+.cell-expand {
+  position: relative;
+}
+
 .expand {
-  width: 100%;
-  padding: 0;
+  position: absolute;
+  inset: 0;
+  padding: 8px 9px;
   border: 0;
   background: none;
   color: var(--text-faint);
   font-size: 11px;
   line-height: 1;
+  text-align: left;
+  cursor: pointer;
 }
 
 .expand:hover {
@@ -977,8 +989,7 @@ tr.reconcile--conditional td {
       <h1>欄位對照</h1>
       <p>
         每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。<br />
-        資料來源為 <code class="resp">data</code>/*.json，本頁與各頁 HTML / markdown 皆由 <code class="resp">pnpm example</code> 生成。 通用規則見
-        <a class="index__link" href="./README.md">README.md</a>。
+        資料來源為 <code class="resp">data</code>/*.json，本頁與各頁 HTML / markdown 皆由 <code class="resp">pnpm example</code> 生成。
       </p>
       <table>
         <thead>
