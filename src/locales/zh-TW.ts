@@ -94,7 +94,8 @@ skill 選項：
       fields: number,
     ) => `${page}：${queries} 個查詢（${polling} 個輪詢）、${sections} 個區塊、${fields} 個欄位`,
     loadSummary: (pollingHttp: number, perHour: string) =>
-      `  單次全量刷新 ${pollingHttp} 支 HTTP　每小時 ${perHour} 支`,
+      // U+3000 全形空格作為視覺分隔；寫成逸出序列，否則編輯器 / 複製貼上會把它吃掉（見 AGENTS §7）
+      `  單次全量刷新 ${pollingHttp} 支 HTTP\u3000每小時 ${perHour} 支`,
     unresolvedSummary: (n: number) => `  ⚠️ ${n} 個欄位的來源未追出，需人工確認`,
     unknownOption: (arg: string) => `未知選項：${arg}`,
     unknownCommand: (arg: string) => `未知指令：${arg}`,

@@ -56,6 +56,7 @@ export function loadPages(dataDir: string, locale: Locale = DEFAULT_LOCALE): Fie
     } catch (error) {
       throw new Error(
         locale.errors.dataNotJson(file, error instanceof Error ? error.message : String(error)),
+        { cause: error },
       );
     }
 

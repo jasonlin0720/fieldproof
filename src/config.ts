@@ -113,6 +113,7 @@ export function loadConfig(explicitPath: string | undefined, cwd: string): Resol
         path,
         error instanceof Error ? error.message : String(error),
       ),
+      { cause: error },
     );
   }
 

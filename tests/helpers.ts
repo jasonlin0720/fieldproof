@@ -57,7 +57,7 @@ export function makePage(): FieldMapPage {
         ],
       },
     ],
-  }) as FieldMapPage;
+  });
 }
 
 export const TEST_CONTEXT: RenderContext = {
@@ -271,7 +271,7 @@ export function makeCoveragePage(): FieldMapPage {
         ],
       },
     ],
-  }) as FieldMapPage;
+  });
 }
 
 /** 從 stub locale 的標記中取出 key path，巢狀標記（函式參數裡又有標記）也一併取出。 */

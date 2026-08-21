@@ -49,7 +49,7 @@ export function openReviewUi(
 ): ReviewUi {
   const ctx: RenderContext = { ...TEST_CONTEXT, ...options.context };
   const win = new Window({ url: 'http://localhost/' });
-  const doc = win.document as unknown as Document;
+  const doc: Document = win.document;
 
   for (const [key, value] of Object.entries(options.storage ?? {})) {
     win.localStorage.setItem(key, value);

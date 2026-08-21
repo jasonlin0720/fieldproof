@@ -27,8 +27,13 @@ import type { FieldMapPage } from '../src/schema.js';
 
 const SRC = fileURLToPath(new URL('../src/', import.meta.url));
 
-/** 漢字 + 中日韓標點 + 全形字元。`—` `·` `✓` 這類結構性符號不算，它們不帶語言。 */
-const CJK = /[　-〿・一-鿿＀-￯]/;
+/**
+ * 漢字 + 中日韓標點 + 全形字元。`—` `·` `✓` 這類結構性符號不算，它們不帶語言。
+ *
+ * 一律寫成逸出序列：這個字元類本身就含 U+3000 全形空格，用字面字元寫的話，編輯器、
+ * heredoc 或複製貼上都可能把它吃成普通空格，這條護欄就靜靜地不再攔截全形標點（AGENTS §7）。
+ */
+const CJK = /[\u3000-\u303F\u30FB\u4E00-\u9FFF\uFF00-\uFFEF]/;
 
 const STUB_CONTEXT = { command: 'cmd', dataDir: 'data', locale: makeStubLocale() };
 

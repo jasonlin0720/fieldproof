@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一分支的舊 run 直接取消，不排隊
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # engines 宣告 >=20，就兩端都要跑：下限與現行
+        node: [20, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        run: pnpm typecheck
+      - name: lint
+        run: pnpm lint
+      - name: format
+        run: pnpm format:check
+      - name: test
+        run: pnpm test
+
+      # 生成物與資料同步——用工具自己的 --check 驗自己的 examples。
+      # 改了 renderer 卻忘了重生 examples，會在這裡紅。
+      - name: examples in sync
+        run: pnpm example:check
+
+  package:
+    name: pack and run as a consumer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # 這一段防的是「所有測試都綠、但裝起來的 CLI 什麼都不做」。
+      # `isDirectRun()` 曾因為沒解析 symlink 而讓 npx / pnpm 執行時靜默 exit 0——
+      # 單元測試看不到，因為測試是直接 import 模組的。
+      - name: pack
+        run: |
+          pnpm build
+          echo "TARBALL=$(pwd)/$(npm pack --silent)" >> "$GITHUB_ENV"
+
+      - name: install into a clean project
+        run: |
+          mkdir -p /tmp/consumer/data && cd /tmp/consumer
+          npm init -y >/dev/null
+          npm install --silent "$TARBALL"
+          printf '{ "dataDir": "data", "outDir": "docs", "locale": "en" }\n' > fieldproof.config.json
+          printf '# placeholder\n' > SOURCE.md
+          cat > data/p.json <<'JSON'
+          {
+            "page": "p", "title": "P", "sources": ["SOURCE.md"], "auditedAt": "2026-01-01",
+            "queries": { "Q1": { "endpoint": "GET /a", "sdk": "getA", "params": {}, "refetch": 60000 } },
+            "sections": [{ "key": "s", "kind": "card", "title": "S", "fields": [
+              { "id": "f", "label": "F", "query": "Q1", "resp": "a",
+                "source": "direct", "how": "as-is", "display": "thousands" }
+            ]}]
+          }
+          JSON
+
+      - name: run it the way a consumer does
+        working-directory: /tmp/consumer
+        run: |
+          set -e
+          test "$(npx fieldproof --version)" = "$(node -p "require('./node_modules/fieldproof/package.json').version")"
+          npx fieldproof build
+          npx fieldproof build --check
+          npx fieldproof skill --install
+          for f in docs/p.md docs/p.html docs/index.html .claude/skills/fieldproof/SKILL.md; do
+            test -s "$f" || { echo "缺少或空白：$f"; exit 1; }
+          done
+          # 資料壞掉必須非零退出，而不是靜默成功
+          printf '{ "page": "p",, }' > data/p.json
+          if npx fieldproof build; then echo "壞資料卻回報成功"; exit 1; fi
