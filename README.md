@@ -123,6 +123,7 @@ fieldproof build                    # validate and generate
 fieldproof build --check            # validate and compare only; non-zero exit if out of sync
 fieldproof build --config <path>    # explicit config (default: search upward from cwd)
 
+fieldproof --version                # print the version
 fieldproof skill                    # show where the bundled skill is and where it would go
 fieldproof skill --install          # copy it into .claude/skills/fieldproof
 fieldproof skill --install --to <d> # e.g. ~/.claude/skills/fieldproof for all your projects

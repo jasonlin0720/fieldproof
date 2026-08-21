@@ -8,7 +8,7 @@
 > **人要驗收請開 [`dashboard.html`](./dashboard.html)**（可勾選、可篩選、可匯出問題清單）；
 > 本 markdown 是給 LLM 讀與 `git diff` 審閱用的。
 >
-> 盤點日期：**2026-08-19**（「對過程式碼」的日期，不是「驗收過」的日期）
+> 盤點日期：**2026-08-21**（「對過程式碼」的日期，不是「驗收過」的日期）
 >
 > 盤點時讀過的原始碼：
 > - `src/composables/useDashboardData.ts`

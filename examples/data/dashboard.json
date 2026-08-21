@@ -2,7 +2,7 @@
   "page": "dashboard",
   "title": "書店後台總覽",
   "route": "/admin/dashboard",
-  "auditedAt": "2026-08-19",
+  "auditedAt": "2026-08-21",
   "sources": [
     "src/composables/useDashboardData.ts",
     "src/components/dashboard/SalesCard.vue",

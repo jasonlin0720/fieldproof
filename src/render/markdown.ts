@@ -222,6 +222,9 @@ export function renderMarkdown(
     md.overviewLoad(formatRate(stats.perHour), intervalBreakdown(stats, locale)),
     md.overviewBaseline(stats.baseHttpCount, stats.conditionalHttpCount),
     md.overviewSources(sourceCounts(stats, locale)),
+    // 只在有推測的欄位時才印。這份 markdown 的讀者是 LLM 與 code review，
+    // 「這頁有幾格是猜的」正是該最先看到的東西，不該只藏在欄位名後面的一個圖示裡。
+    ...(stats.unresolvedCount > 0 ? [md.overviewUnresolved(stats.unresolvedCount)] : []),
     '',
     ...md.overviewDerivedNote,
     '',

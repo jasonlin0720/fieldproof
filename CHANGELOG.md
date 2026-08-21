@@ -14,6 +14,7 @@ contain.
 
 ### Added
 
+- `--version`.
 - `en` locale alongside `zh-TW`. `fmt()` gained a two-form plural syntax (`{n|one|other}`)
   because `ui` strings are serialized into the browser and cannot hold functions. `Intl.PluralRules`
   is deliberately not used — its output is tied to the bundled ICU version, and generated output is
@@ -60,6 +61,13 @@ contain.
 - CLI messages now use the configured locale instead of always the default.
 
 ### Fixed
+
+- **The CLI did nothing when run through `node_modules/.bin`.** The entry-point check compared
+  `process.argv[1]` against `import.meta.url` without resolving symlinks, so `npx fieldproof`,
+  `pnpm fieldproof` and every npm script exited 0 having done nothing. Only a real pack-and-install
+  test surfaced it.
+- `fieldproof skill` now respects the configured locale instead of always using the default.
+- English: "1 query poll" reads "1 query polls".
 
 - Clicking a table row no longer expands it. Both drag-selecting and double-clicking to copy a
   response path were being read as expand gestures, and the re-render wiped the selection.

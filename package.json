@@ -1,7 +1,7 @@
 {
   "name": "fieldproof",
   "version": "0.1.0",
-  "description": "把「畫面上每個欄位的值從哪來、怎麼算、該怎麼顯示」寫成 JSON，產出逐欄位驗收的 HTML 與供 LLM 讀的 Markdown",
+  "description": "Describe where every value on a screen comes from in JSON. Generates a field-by-field review tool and an LLM-readable map.",
   "keywords": [
     "field-map",
     "verification",
@@ -13,6 +13,14 @@
   ],
   "license": "MIT",
   "author": "Jason Lin <zhengdelin0720@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasonlin0720/fieldproof.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jasonlin0720/fieldproof/issues"
+  },
+  "homepage": "https://github.com/jasonlin0720/fieldproof#readme",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -33,7 +41,7 @@
     "AGENTS.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && cp -R src/assets dist/assets",
+    "build": "tsc -p tsconfig.build.json && node -e \"fs.cpSync('src/assets','dist/assets',{recursive:true})\"",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",

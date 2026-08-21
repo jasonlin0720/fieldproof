@@ -66,6 +66,7 @@ skill 選項：
   --to <dir>                    安裝位置（預設 .claude/skills/fieldproof）
 
   -h, --help                    顯示本說明
+  -v, --version                 顯示版本
 `,
     failHeader: '\n✖ fieldproof 失敗\n',
     inSync: (n: number) => `✓ ${n} 個生成物皆與資料同步`,
@@ -73,10 +74,16 @@ skill 選項：
       `以下生成物已無對應的資料檔，請刪除（本指令不會自動刪，它們多半已在 git 裡）：\n` +
       paths.map((p) => `  ${p}`).join('\n'),
     driftHeader:
-      '以下頁面的來源檔在盤點之後被 commit 動過，資料檔可能已與程式碼脫節，建議重新盤點。\n' +
+      '以下頁面的來源檔，在資料檔最後一次 commit 之後又被改過，可能已與程式碼脫節，建議重新盤點。\n' +
       '（本工具不判斷內容是否真的變了，只轉述 git 的事實；此提示不影響 --check 的結果。）',
-    driftPage: (page: string, since: string, sources: string[]) =>
-      `  ${page}（盤點於 ${since}）：\n` + sources.map((p) => `    ${p}`).join('\n'),
+    driftPage: (page: string, sha: string, date: string, sources: string[]) =>
+      `  ${page}（基準 ${sha}，${date}）：\n` + sources.map((p) => `    ${p}`).join('\n'),
+    driftMissingHeader:
+      '以下頁面宣告的來源檔在磁碟上找不到。可能是檔案改名 / 刪除了（該重新盤點），\n' +
+      '也可能是路徑基準寫錯——`sources` 以設定檔所在目錄為基準，不是 repo 根目錄。\n' +
+      '**找不到的檔案比對不了，所以這些頁面不會有變動提示：沒有提示不等於沒有變動。**',
+    driftMissingPage: (page: string, sources: string[]) =>
+      `  ${page}：\n` + sources.map((p) => `    ${p}`).join('\n'),
     outOfSync: (command: string, paths: string[]) =>
       `以下生成物與資料不同步，請執行 \`${command}\`：\n${paths.map((p) => `  ${p}`).join('\n')}`,
     pageSummary: (
@@ -88,6 +95,7 @@ skill 選項：
     ) => `${page}：${queries} 個查詢（${polling} 個輪詢）、${sections} 個區塊、${fields} 個欄位`,
     loadSummary: (pollingHttp: number, perHour: string) =>
       `  單次全量刷新 ${pollingHttp} 支 HTTP　每小時 ${perHour} 支`,
+    unresolvedSummary: (n: number) => `  ⚠️ ${n} 個欄位的來源未追出，需人工確認`,
     unknownOption: (arg: string) => `未知選項：${arg}`,
     unknownCommand: (arg: string) => `未知指令：${arg}`,
     extraArg: (arg: string) => `多餘的參數：${arg}`,
@@ -155,6 +163,8 @@ skill 選項：
       `- **Network 對帳基準：進頁應出現 ${base} 支 request**` +
       (conditional ? `，另有 ${conditional} 支條件性請求（卡片隱藏時不會出現）` : ''),
     overviewSources: (counts: string) => `- 欄位分佈：${counts}`,
+    overviewUnresolved: (n: number) =>
+      `- ⚠️ **${n} 個欄位的來源未追出**，那幾列是推測而非查證，review 時請優先看它們`,
     overviewDerivedNote: [
       '> 以上數字由查詢定義推導，非手寫——加一支查詢或改一個刷新間隔，數字自己會對。',
       '> 若分頁常駐且背景仍刷新，實際負載需再乘上同時在線的分頁數。',

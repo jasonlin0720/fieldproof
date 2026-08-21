@@ -71,6 +71,7 @@ skill options:
   --to <dir>                     Where to install (default: .claude/skills/fieldproof)
 
   -h, --help                     Show this help
+  -v, --version                  Show the version
 `,
     failHeader: '\n✖ fieldproof failed\n',
     inSync: (n) => `✓ ${plural(n, 'generated file')} in sync with the data`,
@@ -79,11 +80,18 @@ skill options:
       '(this command will not — they are probably committed):\n' +
       paths.map((p) => `  ${p}`).join('\n'),
     driftHeader:
-      'These pages list source files that were committed after the page was audited, so the ' +
-      'data file may no longer match the code. Consider re-auditing.\n' +
+      'These pages list source files that changed after the data file was last committed, so ' +
+      'the data file may no longer match the code. Consider re-auditing.\n' +
       '(This only relays what git knows — it does not check the content. It does not affect --check.)',
-    driftPage: (page, since, sources) =>
-      `  ${page} (audited ${since}):\n` + sources.map((p) => `    ${p}`).join('\n'),
+    driftPage: (page, sha, date, sources) =>
+      `  ${page} (since ${sha}, ${date}):\n` + sources.map((p) => `    ${p}`).join('\n'),
+    driftMissingHeader:
+      'These pages declare source files that are not on disk. Either they were renamed or\n' +
+      'deleted (re-audit), or the paths are wrong — `sources` is relative to the config file,\n' +
+      'not the repository root.\n' +
+      '**A file that cannot be found cannot be compared, so these pages will never report a\n' +
+      'change: silence here does not mean nothing moved.**',
+    driftMissingPage: (page, sources) => `  ${page}:\n` + sources.map((p) => `    ${p}`).join('\n'),
     outOfSync: (command, paths) =>
       `These generated files are out of sync with the data. Run \`${command}\`:\n` +
       paths.map((p) => `  ${p}`).join('\n'),
@@ -92,6 +100,8 @@ skill options:
       `${plural(sections, 'section')}, ${plural(fields, 'field')}`,
     loadSummary: (pollingHttp, perHour) =>
       `  ${plural(pollingHttp, 'HTTP request')} per full refresh   ${perHour} per hour`,
+    unresolvedSummary: (n) =>
+      `  ⚠️ ${plural(n, 'field')} could not be traced to a source; needs a human`,
     unknownOption: (arg) => `Unknown option: ${arg}`,
     unknownCommand: (arg) => `Unknown command: ${arg}`,
     extraArg: (arg) => `Unexpected argument: ${arg}`,
@@ -156,7 +166,7 @@ skill options:
       `- **${plural(sections, 'section')}, ${plural(fields, 'field')}**, ` +
       `built from **${plural(queries, 'query', 'queries')}**`,
     overviewPolling: (pollingQueries, pollingHttp) =>
-      `- **${plural(pollingQueries, 'query', 'queries')}** poll; ` +
+      `- **${plural(pollingQueries, 'query', 'queries')}** poll${pollingQueries === 1 ? 's' : ''}; ` +
       `one full refresh = **${plural(pollingHttp, 'HTTP request')}**`,
     overviewLoad: (perHour, breakdown) => `- Polling load: **${perHour} per hour**${breakdown}`,
     overviewBaseline: (base, conditional) =>
@@ -165,6 +175,9 @@ skill options:
         ? `, plus ${plural(conditional, 'conditional request')} (absent when the card is hidden)`
         : ''),
     overviewSources: (counts) => `- Field distribution: ${counts}`,
+    overviewUnresolved: (n) =>
+      `- ⚠️ **${plural(n, 'field')} could not be traced to a source** — those rows are guesses, ` +
+      'not findings. Read them first.',
     overviewDerivedNote: [
       '> These numbers are derived from the query definitions, not hand-written — add a query',
       '> or change an interval and they follow. Tabs left open multiply the real load.',

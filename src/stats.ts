@@ -42,6 +42,13 @@ export interface FieldMapStats {
   pollingQueryCount: number;
   queryCount: number;
   sectionCount: number;
+  /**
+   * 標為 `unresolved` 的欄位數——來源沒追出來、該列是推測。
+   *
+   * 單獨算一個數而不是泛化成 `byFlag`：另外兩個 flag 是註記，這一個說的是**這份宣告
+   * 本身還沒查證**，性質不同。它該在概況裡被看見，其他兩個不必。
+   */
+  unresolvedCount: number;
 }
 
 const httpOf = (query: Query): number => query.httpCount ?? 1;
@@ -59,9 +66,13 @@ export function computeStats(page: FieldMapPage): FieldMapStats {
   } satisfies Record<SourceKind, number>;
 
   let fieldCount = 0;
+  let unresolvedCount = 0;
   for (const section of page.sections) {
     fieldCount += section.fields.length;
-    for (const field of section.fields) bySource[field.source] += 1;
+    for (const field of section.fields) {
+      bySource[field.source] += 1;
+      if (field.flags?.includes('unresolved')) unresolvedCount += 1;
+    }
   }
 
   const sumWhere = (predicate: (q: Query) => boolean): number =>
@@ -81,6 +92,7 @@ export function computeStats(page: FieldMapPage): FieldMapStats {
     pollingQueryCount: queries.filter((q) => q.refetch !== 'none').length,
     queryCount: queries.length,
     sectionCount: page.sections.length,
+    unresolvedCount,
   };
 }
 

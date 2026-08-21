@@ -301,3 +301,28 @@ function extractHashes(html: string): { dataHash: string; displayHash: string } 
   const field = payload.sections[0]!.fields[0]!;
   return { dataHash: field.dataHash, displayHash: field.displayHash };
 }
+
+describe('推測欄位的能見度', () => {
+  /**
+   * markdown 的讀者是 LLM 與 code review。一頁裡有幾格是猜的，是 review 該最先看到的
+   * 事——修正前它只是欄位名後面一個 ❓，要讀完每一列才發現。
+   */
+  function withUnresolved(): FieldMapPage {
+    const page = richPage();
+    page.sections[0]!.fields[0]!.flags = ['unresolved'];
+    return page;
+  }
+
+  it('概況指出有幾個欄位的來源未追出', () => {
+    const page = withUnresolved();
+    const md = renderMarkdown(page, computeStats(page), TEST_CONTEXT);
+
+    expect(md).toMatch(/## 概況[\s\S]*1 個欄位的來源未追出[\s\S]*?\n---/);
+  });
+
+  it('沒有推測欄位時整行省略，不留「0 個」', () => {
+    const md = renderMarkdown(PAGE, STATS, TEST_CONTEXT);
+
+    expect(md).not.toContain('來源未追出');
+  });
+});

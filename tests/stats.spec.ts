@@ -166,3 +166,32 @@ describe('computeStats', () => {
     expect(stats.perHour).toBeCloseTo(8.571, 3);
   });
 });
+
+describe('unresolved 計數', () => {
+  it('沒有推測欄位時為 0', () => {
+    expect(computeStats(makePage()).unresolvedCount).toBe(0);
+  });
+
+  it('數出標為 unresolved 的欄位', () => {
+    const page = makePage();
+    page.sections[0]!.fields[0]!.flags = ['unresolved'];
+    page.sections[0]!.fields.push({
+      display: 'd',
+      flags: ['fragile', 'unresolved'],
+      how: 'h',
+      id: 'f2',
+      label: 'F2',
+      resp: null,
+      source: 'fe-const',
+    });
+
+    expect(computeStats(page).unresolvedCount).toBe(2);
+  });
+
+  it('其他 flag 不算進來——它們是註記，不是「還沒查證」', () => {
+    const page = makePage();
+    page.sections[0]!.fields[0]!.flags = ['exception', 'backend-pending', 'fragile'];
+
+    expect(computeStats(page).unresolvedCount).toBe(0);
+  });
+});
