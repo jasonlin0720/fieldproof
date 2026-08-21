@@ -9,8 +9,12 @@ it is JSON rather than code.
 
 ## [Unreleased]
 
-Nothing has been published to npm yet, so 0.1.0 is still ahead. Everything below is what it will
-contain.
+_Nothing yet._
+
+## [0.1.0] - 2026-08-21
+
+First release. The entries below describe the shape it shipped in rather than changes against a
+predecessor — there wasn't one.
 
 ### Added
 
@@ -89,3 +93,6 @@ For each data file:
 
 Existing review marks survive: `resp` is part of the data-side fingerprint, so those fields ask
 to be re-verified on the data side only, which is the correct outcome.
+
+[unreleased]: https://github.com/jasonlin0720/fieldproof/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/jasonlin0720/fieldproof/releases/tag/v0.1.0
