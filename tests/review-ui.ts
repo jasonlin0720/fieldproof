@@ -29,8 +29,13 @@ export interface ReviewUi {
   detailOf: (id: string) => Element | null;
   doc: Document;
   expandOf: (id: string) => HTMLElement;
+  /** 該列所有能觸發展開的元素——展開鈕，以及帶 tooltip 的 chip / tag。 */
+  expandTriggersOf: (id: string) => HTMLElement[];
   markOf: (id: string, kind: MarkKind, value: MarkValue) => HTMLElement;
   noteInputOf: (id: string) => HTMLElement;
+  /** 目前網址的 query string，用來驗證篩選狀態有沒有同步出去。 */
+  queryString: () => string;
+  searchEl: () => HTMLElement;
   rowIds: () => string[];
   rowOf: (id: string) => HTMLElement;
   win: Window;
@@ -41,6 +46,8 @@ export interface OpenOptions {
   context?: Partial<RenderContext>;
   /** 預先寫進 localStorage 的內容，用來模擬「上次驗收過」。 */
   storage?: Record<string, string>;
+  /** 開啟時的網址，用來模擬「別人分享過來的篩選狀態」。 */
+  url?: string;
 }
 
 export function openReviewUi(
@@ -48,7 +55,7 @@ export function openReviewUi(
   options: OpenOptions = {},
 ): ReviewUi {
   const ctx: RenderContext = { ...TEST_CONTEXT, ...options.context };
-  const win = new Window({ url: 'http://localhost/' });
+  const win = new Window({ url: options.url ?? 'http://localhost/' });
   const doc: Document = win.document;
 
   for (const [key, value] of Object.entries(options.storage ?? {})) {
@@ -79,6 +86,12 @@ export function openReviewUi(
       [...doc.querySelectorAll('tr.row')].map((row) => row.getAttribute('data-id') ?? ''),
 
     expandOf: (id) => need(rowOf(id).querySelector('.expand'), `${id} 的展開鈕`) as HTMLElement,
+
+    expandTriggersOf: (id) => [...rowOf(id).querySelectorAll('[data-expand]')] as HTMLElement[],
+
+    queryString: () => win.location.search,
+
+    searchEl: () => need(doc.getElementById('search'), '搜尋框') as HTMLElement,
 
     markOf: (id, kind, value) =>
       need(

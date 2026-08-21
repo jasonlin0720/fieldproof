@@ -9,7 +9,32 @@ it is JSON rather than code.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- Review UI: filters, grouping, status and the search term are mirrored into the URL, so a view
+  can be reloaded and shared. Verification marks stay out of it — they are personal and belong
+  in local storage. Unrecognised values in the URL are dropped (and reported to the console)
+  rather than silently filtering the table down to nothing.
+- Review UI: <kbd>/</kbd> focuses the search box from anywhere, <kbd>Esc</kbd> clears it.
+- Review UI: chips and tags that carry a tooltip (query, flags, checks, _definition changed_)
+  now expand the row as well, so expanding no longer means travelling back to the first column.
+  The row body and the field label stay unclickable so text selection still works.
+- Review UI: responsive layout for narrower screens. Columns are dropped in stages (observed
+  value and note, then query), and the table area became its own scroll container so the toolbar,
+  the filter bar and the table header stay put no matter which way you scroll.
+
+### Fixed
+
+- Review UI: the three sticky offsets (filter bar, table header, group rows) were hardcoded
+  constants while the filter bar has always been able to wrap, so the header could sit in mid-air
+  and group titles could cover their own first row. Two of them are gone entirely now that the
+  layout is flex-driven; the remaining one is measured.
+- Review UI: the page itself used to scroll sideways when the table could not shrink any further,
+  dragging the sticky toolbar and header out of view along with it.
+- Review UI: multi-select filter panels near the right edge of the window overflowed it, leaving
+  some options unclickable. They now flip to right-alignment, and open inline on narrow screens.
+- Review UI: the **▸** button is centred inside its cell by default, which drifted half a row
+  away from the field it points at once rows grew tall. It now aligns to the top of the row.
 
 ## [0.1.0] - 2026-08-21
 

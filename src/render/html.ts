@@ -177,7 +177,10 @@ ${css}
     </header>
 
     <div class="filters">
-      <input class="search" type="search" id="search" placeholder="${escapeHtml(ui.searchPlaceholder)}" aria-label="${escapeHtml(ui.searchAria)}" />
+      <div class="search-wrap">
+        <input class="search" type="search" id="search" placeholder="${escapeHtml(ui.searchPlaceholder)}" aria-label="${escapeHtml(ui.searchAria)}" />
+        <kbd class="search-kbd" title="${escapeHtml(ui.searchShortcut)}">/</kbd>
+      </div>
 
       <span class="filters__label">${escapeHtml(ui.groupLabel)}</span>
       <div class="seg" role="group" aria-label="${escapeHtml(ui.groupAria)}">
@@ -202,7 +205,7 @@ ${multiFilter('filter-source', ui.filterSource)}${hasFlags ? multiFilter('filter
         <colgroup>
           <col style="width: 34px" />
           <col style="width: 168px" />
-          <col style="width: 76px" />
+          <col class="col-query" style="width: 76px" />
           <col style="width: 258px" />
           <col />
           <col class="col-actual" style="width: 112px" />
@@ -214,7 +217,7 @@ ${multiFilter('filter-source', ui.filterSource)}${hasFlags ? multiFilter('filter
           <tr>
             <th><span class="sr-only"></span></th>
             <th>${escapeHtml(ui.colField)}</th>
-            <th>${escapeHtml(ui.colQuery)}</th>
+            <th class="col-query">${escapeHtml(ui.colQuery)}</th>
             <th>${escapeHtml(ui.colResp)}</th>
             <th>${escapeHtml(ui.colExpect)}</th>
             <th class="col-actual">${escapeHtml(ui.colActual)}</th>

@@ -47,8 +47,15 @@ this is wrong_: `direct` and `backend-agg` are the backend's; every `fe-*` is yo
 
 Click the **▸** in the first column to expand a row. You get the query's endpoint, SDK function,
 parameters, enable condition, and any notes — plus the verification checks if the field has
-them, laid out as _given → the screen should_. The row body itself is not clickable, so you can
-select and copy a response path without the row folding open underneath you.
+them, laid out as _given → the screen should_.
+
+The chips and tags carrying a tooltip — the query chip, the flag icons, the checks tag, the
+_definition changed_ tag — expand the row too, so you rarely have to travel back to the first
+column. The `?` cursor is the tell: those elements have more to say, and expanding is where it
+is said.
+
+The row body itself stays unclickable, and so does the field label. That is deliberate: it means
+you can select and copy a response path without the row folding open underneath you.
 
 ## Marking
 
@@ -79,9 +86,26 @@ Sixty fields is too many to hold at once. The controls above the table exist to 
 - **Status** — _unverified_ to see what is left, _problems_ to review what you flagged,
   _definition changed_ to see what needs re-checking.
 - **Search** covers labels, response paths, how, display, and your own notes and observed values.
+  Press <kbd>/</kbd> from anywhere to jump into it, <kbd>Esc</kbd> to clear it again.
 
 The progress bar counts the whole page, not the current filter; the filtered count appears
 beside it.
+
+### Sharing a view
+
+Filters and the search term live in the URL:
+
+```
+dashboard.html?q=isbn&g=query&s=unverified&src=direct,fe-derive
+```
+
+Reload and you land on the same view; send the link and someone else does too. Handy for _these
+four fields are the ones I could not verify — take a look_.
+
+Your marks are **not** in the URL. They are a personal pass over the page and stay in this
+browser's local storage, so sharing a view never ships your verdicts along with it. The URL
+also wins over whatever grouping this browser remembered, since a shared link is a deliberate
+choice rather than a leftover habit.
 
 ## Reconciling the Network panel
 
