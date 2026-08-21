@@ -114,11 +114,22 @@ function readVersion(): string {
  */
 function tryLocale(explicitPath: string | undefined): Locale {
   try {
-    return getLocale(loadConfig(explicitPath, process.cwd()).locale);
+    resolvedLocale = getLocale(loadConfig(explicitPath, process.cwd()).locale);
   } catch {
-    return DEFAULT_LOCALE;
+    // 讀不到設定就維持現況——failHeader 用得上這個值
   }
+  return resolvedLocale;
 }
+
+/**
+ * 目前已知的語系。
+ *
+ * 錯誤標頭在 catch 區塊印，那時可能還沒讀到設定（參數就解析失敗）、也可能早就讀到了
+ * （驗證階段才炸）。用一個隨進度更新的值，讓標頭與訊息不會一個中文一個英文——
+ * 錯誤訊息本身走的是設定的語系。失敗發生在讀到設定之前時仍是預設值，那是正確的：
+ * 那時確實還不知道。
+ */
+let resolvedLocale: Locale = DEFAULT_LOCALE;
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
@@ -153,7 +164,8 @@ function main(): void {
 
   const config = loadConfig(args.config, process.cwd());
   // 讀完設定才知道語系。在這之前（參數解析、找不到設定檔）只能用 DEFAULT_LOCALE。
-  const { cli } = getLocale(config.locale);
+  resolvedLocale = getLocale(config.locale);
+  const { cli } = resolvedLocale;
   const result = build(config, { check: args.check });
 
   /**
@@ -252,7 +264,7 @@ if (isDirectRun()) {
   try {
     main();
   } catch (error) {
-    console.error(DEFAULT_LOCALE.cli.failHeader);
+    console.error(resolvedLocale.cli.failHeader);
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
