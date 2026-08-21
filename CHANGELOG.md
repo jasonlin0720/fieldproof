@@ -9,6 +9,12 @@ it is JSON rather than code.
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [0.2.0] - 2026-08-21
+
+Everything here is the review UI. The data format is untouched.
+
 ### Added
 
 - Review UI: filters, grouping, status and the search term are mirrored into the URL, so a view
@@ -35,6 +41,18 @@ it is JSON rather than code.
   some options unclickable. They now flip to right-alignment, and open inline on narrow screens.
 - Review UI: the **▸** button is centred inside its cell by default, which drifted half a row
   away from the field it points at once rows grew tall. It now aligns to the top of the row.
+
+### Upgrading
+
+The generated HTML changed, so `build --check` will report the committed output as stale until
+you regenerate it:
+
+```sh
+npx fieldproof build   # then commit the regenerated files
+```
+
+Nothing else to do — `schema.ts` did not change, so your data files, your config and your
+recorded review marks all carry over as they are.
 
 ## [0.1.0] - 2026-08-21
 
@@ -119,5 +137,6 @@ For each data file:
 Existing review marks survive: `resp` is part of the data-side fingerprint, so those fields ask
 to be re-verified on the data side only, which is the correct outcome.
 
-[unreleased]: https://github.com/jasonlin0720/fieldproof/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/jasonlin0720/fieldproof/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/jasonlin0720/fieldproof/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/jasonlin0720/fieldproof/releases/tag/v0.1.0

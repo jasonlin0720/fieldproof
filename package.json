@@ -1,6 +1,6 @@
 {
   "name": "fieldproof",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Describe where every value on a screen comes from in JSON. Generates a field-by-field review tool and an LLM-readable map.",
   "keywords": [
     "field-map",
