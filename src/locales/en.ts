@@ -277,6 +277,8 @@ skill options:
 
     searchPlaceholder: 'Search field / response / how…',
     searchAria: 'Search',
+    searchShortcut: 'Press / to focus search, Esc to clear',
+    warnUrlState: 'Ignored unrecognised filters in the URL:',
     groupLabel: 'Group',
     groupAria: 'Grouping',
     groupBySection: 'By section',

@@ -37,6 +37,10 @@
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC',
     'Microsoft JhengHei', sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 表頭實高，由 app.js 量出來給分組列當 sticky 位移。這裡只是 JS 跑完前的
+     fallback——寫死會在斷點切換（padding 變了）之後錯位。 */
+  --thead-h: 32px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,7 +71,27 @@
   box-sizing: border-box;
 }
 
+/**
+ * 版面骨架：工具列與篩選列固定，表格區自己捲。
+ *
+ * 表格縮到不能再縮時總得有人橫捲。若讓 body 去捲，sticky 的工具列與表頭會被一起
+ * 水平帶走——標題與「UI 欄位」那幾欄直接移出畫面，比看不到最右邊那幾欄更糟。
+ *
+ * 交給 .table-wrap 捲，就必須讓它**同時**接管垂直方向：`overflow-x: auto` 會讓
+ * `overflow-y` 從 visible 被算成 auto，該容器於是成為 sticky 的包含區塊；容器自己
+ * 不捲動的話，表頭的 sticky 等於沒有。兩個方向一起接管，表頭才黏得住容器頂端。
+ *
+ * 附帶效果：工具列與篩選列不必再是 sticky，也沒有人需要知道它們多高了。
+ */
+html,
 body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -80,12 +104,13 @@ body {
 /* ---------- toolbar ---------- */
 
 .toolbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
+  flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  gap: 12px 24px;
   padding: 12px 20px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
@@ -217,9 +242,9 @@ input:focus-visible {
 /* ---------- 篩選列 ---------- */
 
 .filters {
-  position: sticky;
-  top: 68px; /* = toolbar 高度（實測） */
+  position: relative;
   z-index: 25;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -234,8 +259,38 @@ input:focus-visible {
   font-size: 11.5px;
 }
 
-.search {
+.search-wrap {
+  position: relative;
   flex: 0 1 280px;
+  display: flex;
+}
+
+.search-kbd {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 15px;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+/* 有焦點或有內容時讓開，否則會蓋住使用者打的字。 */
+.search:focus + .search-kbd,
+.search:not(:placeholder-shown) + .search-kbd {
+  opacity: 0;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
   padding: 5px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -294,6 +349,13 @@ input:focus-visible {
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
 }
 
+/* 貼近視窗右緣時改為靠右展開，由 app.js 量到才加。純 CSS 翻不了向——
+   要知道面板會不會超出視窗，得先量它。 */
+.multi__panel--flip {
+  left: auto;
+  right: 0;
+}
+
 .multi__item {
   display: flex;
   align-items: center;
@@ -317,6 +379,10 @@ input:focus-visible {
 /* ---------- 表格 ---------- */
 
 .table-wrap {
+  flex: 1;
+  /* flex 子項的預設 min-height 是 auto，不歸零它就撐得比容器高，永遠不會捲。 */
+  min-height: 0;
+  overflow: auto;
   padding: 0 20px 64px;
 }
 
@@ -329,7 +395,7 @@ table {
 
 thead th {
   position: sticky;
-  top: 117px; /* = toolbar 68 + filters 49 */
+  top: 0;
   z-index: 20;
   padding: 7px 9px;
   background: var(--bg-subtle);
@@ -363,7 +429,7 @@ tr.group > td {
   /* 單行且高度固定：sticky 元素會覆蓋捲過它的內容，行高越小遮蔽越少。
      完整的空狀態規則與查詢參數改由 title tooltip 與展開區承載。 */
   position: sticky;
-  top: 149px; /* = toolbar 68 + filters 49 + thead 32 */
+  top: var(--thead-h);
   z-index: 15;
   padding: 9px 10px 8px;
   background: var(--bg-raised);
@@ -440,6 +506,8 @@ tr.group:first-child > td {
 .expand {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: flex-start;
   padding: 8px 9px;
   border: 0;
   background: none;
@@ -737,12 +805,127 @@ tr.detail > td {
 
 /* 窄視窗保護：主要情境為全螢幕（≥1100px），此處只求不破版 */
 
+/* 列印時整頁展開——上面那組 overflow 會讓印出來的只剩第一頁。 */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .table-wrap {
+    overflow: visible;
+  }
+}
+
+/* ---------- 窄螢幕 ----------
+
+   策略是「收欄位 + 讓內容重排」，不是「橫向捲動」。表格若放進 overflow-x 容器，
+   該容器就成了 sticky 的包含區塊（overflow-x: auto 會把 overflow-y 從 visible
+   算成 auto），表頭的 sticky 立刻失效——那是驗收時最不能丟的東西。
+
+   被收起來的欄位都在展開明細裡有完整版本，不是資訊消失。 */
+
 @media (max-width: 1100px) {
   .col-actual,
   .col-note,
   .cell-actual,
   .cell-note {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  /* colgroup 的固定寬度在這裡退成建議值，讓「取得方式」那欄自己去搶剩餘空間。 */
+  table {
+    table-layout: auto;
+  }
+
+  .toolbar {
+    gap: 10px 16px;
+    padding: 10px 14px;
+  }
+
+  /* 撐開左右兩端的 spacer 在換行後只會多擠出一列空白。 */
+  .toolbar__spacer {
+    display: none;
+  }
+
+  .filters {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .table-wrap {
+    padding: 0 14px 64px;
+  }
+
+  tbody td {
+    padding: 7px 6px;
+  }
+
+  .expand {
+    padding: 7px 6px;
+  }
+
+  thead th {
+    padding: 6px 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 查詢欄收起：qchip 的內容在展開明細的查詢框裡有完整端點與參數。 */
+  .col-query,
+  .cell-query {
+    display: none;
+  }
+
+  .search-wrap {
+    flex: 1 1 100%;
+  }
+
+  .progress {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .toolbar h1 {
+    font-size: 14px;
+  }
+
+  /* 320px 的最小欄寬在這個寬度會直接溢出容器。 */
+  .detail__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  }
+
+  /* 絕對定位的下拉面板一旦超出視窗右緣，露在外面的那些選項就點不到了。
+     這個寬度下改成在流內展開：撐開 .filters 而不是蓋在它外面。
+     .filters 撐高後表頭位置由 ResizeObserver 跟上，不會錯位。 */
+  .multi__panel {
+    position: static;
+    min-width: 0;
+    max-height: 220px;
+    box-shadow: none;
+  }
+}
+
+/* 到這個寬度，剩下的欄位（欄位名 / response / 取得方式 / 資料 ✓ / 顯示 ✓）
+   全都是驗收當下要對照的，沒有一欄能再收。把表格的左右留白讓出來換那最後幾十
+   px——貼邊比整頁橫捲好，橫捲會連 sticky 的工具列一起帶走。 */
+@media (max-width: 560px) {
+  .table-wrap {
+    padding: 0 0 64px;
+  }
+
+  tbody td,
+  thead th {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .expand {
+    padding-left: 5px;
+    padding-right: 5px;
   }
 }
 

@@ -43,6 +43,10 @@ exports[`renderHtml > 逐字輸出維持不變 1`] = `
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC',
     'Microsoft JhengHei', sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 表頭實高，由 app.js 量出來給分組列當 sticky 位移。這裡只是 JS 跑完前的
+     fallback——寫死會在斷點切換（padding 變了）之後錯位。 */
+  --thead-h: 32px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,7 +77,27 @@ exports[`renderHtml > 逐字輸出維持不變 1`] = `
   box-sizing: border-box;
 }
 
+/**
+ * 版面骨架：工具列與篩選列固定，表格區自己捲。
+ *
+ * 表格縮到不能再縮時總得有人橫捲。若讓 body 去捲，sticky 的工具列與表頭會被一起
+ * 水平帶走——標題與「UI 欄位」那幾欄直接移出畫面，比看不到最右邊那幾欄更糟。
+ *
+ * 交給 .table-wrap 捲，就必須讓它**同時**接管垂直方向：\`overflow-x: auto\` 會讓
+ * \`overflow-y\` 從 visible 被算成 auto，該容器於是成為 sticky 的包含區塊；容器自己
+ * 不捲動的話，表頭的 sticky 等於沒有。兩個方向一起接管，表頭才黏得住容器頂端。
+ *
+ * 附帶效果：工具列與篩選列不必再是 sticky，也沒有人需要知道它們多高了。
+ */
+html,
 body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -86,12 +110,13 @@ body {
 /* ---------- toolbar ---------- */
 
 .toolbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
+  flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  gap: 12px 24px;
   padding: 12px 20px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
@@ -223,9 +248,9 @@ input:focus-visible {
 /* ---------- 篩選列 ---------- */
 
 .filters {
-  position: sticky;
-  top: 68px; /* = toolbar 高度（實測） */
+  position: relative;
   z-index: 25;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -240,8 +265,38 @@ input:focus-visible {
   font-size: 11.5px;
 }
 
-.search {
+.search-wrap {
+  position: relative;
   flex: 0 1 280px;
+  display: flex;
+}
+
+.search-kbd {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 15px;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+/* 有焦點或有內容時讓開，否則會蓋住使用者打的字。 */
+.search:focus + .search-kbd,
+.search:not(:placeholder-shown) + .search-kbd {
+  opacity: 0;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
   padding: 5px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -300,6 +355,13 @@ input:focus-visible {
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
 }
 
+/* 貼近視窗右緣時改為靠右展開，由 app.js 量到才加。純 CSS 翻不了向——
+   要知道面板會不會超出視窗，得先量它。 */
+.multi__panel--flip {
+  left: auto;
+  right: 0;
+}
+
 .multi__item {
   display: flex;
   align-items: center;
@@ -323,6 +385,10 @@ input:focus-visible {
 /* ---------- 表格 ---------- */
 
 .table-wrap {
+  flex: 1;
+  /* flex 子項的預設 min-height 是 auto，不歸零它就撐得比容器高，永遠不會捲。 */
+  min-height: 0;
+  overflow: auto;
   padding: 0 20px 64px;
 }
 
@@ -335,7 +401,7 @@ table {
 
 thead th {
   position: sticky;
-  top: 117px; /* = toolbar 68 + filters 49 */
+  top: 0;
   z-index: 20;
   padding: 7px 9px;
   background: var(--bg-subtle);
@@ -369,7 +435,7 @@ tr.group > td {
   /* 單行且高度固定：sticky 元素會覆蓋捲過它的內容，行高越小遮蔽越少。
      完整的空狀態規則與查詢參數改由 title tooltip 與展開區承載。 */
   position: sticky;
-  top: 149px; /* = toolbar 68 + filters 49 + thead 32 */
+  top: var(--thead-h);
   z-index: 15;
   padding: 9px 10px 8px;
   background: var(--bg-raised);
@@ -446,6 +512,8 @@ tr.group:first-child > td {
 .expand {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: flex-start;
   padding: 8px 9px;
   border: 0;
   background: none;
@@ -743,12 +811,127 @@ tr.detail > td {
 
 /* 窄視窗保護：主要情境為全螢幕（≥1100px），此處只求不破版 */
 
+/* 列印時整頁展開——上面那組 overflow 會讓印出來的只剩第一頁。 */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .table-wrap {
+    overflow: visible;
+  }
+}
+
+/* ---------- 窄螢幕 ----------
+
+   策略是「收欄位 + 讓內容重排」，不是「橫向捲動」。表格若放進 overflow-x 容器，
+   該容器就成了 sticky 的包含區塊（overflow-x: auto 會把 overflow-y 從 visible
+   算成 auto），表頭的 sticky 立刻失效——那是驗收時最不能丟的東西。
+
+   被收起來的欄位都在展開明細裡有完整版本，不是資訊消失。 */
+
 @media (max-width: 1100px) {
   .col-actual,
   .col-note,
   .cell-actual,
   .cell-note {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  /* colgroup 的固定寬度在這裡退成建議值，讓「取得方式」那欄自己去搶剩餘空間。 */
+  table {
+    table-layout: auto;
+  }
+
+  .toolbar {
+    gap: 10px 16px;
+    padding: 10px 14px;
+  }
+
+  /* 撐開左右兩端的 spacer 在換行後只會多擠出一列空白。 */
+  .toolbar__spacer {
+    display: none;
+  }
+
+  .filters {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .table-wrap {
+    padding: 0 14px 64px;
+  }
+
+  tbody td {
+    padding: 7px 6px;
+  }
+
+  .expand {
+    padding: 7px 6px;
+  }
+
+  thead th {
+    padding: 6px 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 查詢欄收起：qchip 的內容在展開明細的查詢框裡有完整端點與參數。 */
+  .col-query,
+  .cell-query {
+    display: none;
+  }
+
+  .search-wrap {
+    flex: 1 1 100%;
+  }
+
+  .progress {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .toolbar h1 {
+    font-size: 14px;
+  }
+
+  /* 320px 的最小欄寬在這個寬度會直接溢出容器。 */
+  .detail__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  }
+
+  /* 絕對定位的下拉面板一旦超出視窗右緣，露在外面的那些選項就點不到了。
+     這個寬度下改成在流內展開：撐開 .filters 而不是蓋在它外面。
+     .filters 撐高後表頭位置由 ResizeObserver 跟上，不會錯位。 */
+  .multi__panel {
+    position: static;
+    min-width: 0;
+    max-height: 220px;
+    box-shadow: none;
+  }
+}
+
+/* 到這個寬度，剩下的欄位（欄位名 / response / 取得方式 / 資料 ✓ / 顯示 ✓）
+   全都是驗收當下要對照的，沒有一欄能再收。把表格的左右留白讓出來換那最後幾十
+   px——貼邊比整頁橫捲好，橫捲會連 sticky 的工具列一起帶走。 */
+@media (max-width: 560px) {
+  .table-wrap {
+    padding: 0 0 64px;
+  }
+
+  tbody td,
+  thead th {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .expand {
+    padding-left: 5px;
+    padding-right: 5px;
   }
 }
 
@@ -981,7 +1164,10 @@ tr.reconcile--conditional td {
     </header>
 
     <div class="filters">
-      <input class="search" type="search" id="search" placeholder="搜尋欄位 / response / 取值方式…" aria-label="搜尋" />
+      <div class="search-wrap">
+        <input class="search" type="search" id="search" placeholder="搜尋欄位 / response / 取值方式…" aria-label="搜尋" />
+        <kbd class="search-kbd" title="按 / 聚焦搜尋，Esc 清除">/</kbd>
+      </div>
 
       <span class="filters__label">分組</span>
       <div class="seg" role="group" aria-label="分組方式">
@@ -1022,7 +1208,7 @@ tr.reconcile--conditional td {
         <colgroup>
           <col style="width: 34px" />
           <col style="width: 168px" />
-          <col style="width: 76px" />
+          <col class="col-query" style="width: 76px" />
           <col style="width: 258px" />
           <col />
           <col class="col-actual" style="width: 112px" />
@@ -1034,7 +1220,7 @@ tr.reconcile--conditional td {
           <tr>
             <th><span class="sr-only"></span></th>
             <th>UI 欄位</th>
-            <th>查詢</th>
+            <th class="col-query">查詢</th>
             <th>response 欄位</th>
             <th>預期取值 / 顯示</th>
             <th class="col-actual">畫面實際值</th>
@@ -1058,7 +1244,7 @@ tr.reconcile--conditional td {
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":60000,"note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":null,"source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"7ae33f36","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"},"unresolved":{"icon":"❓","label":"來源未追出，本列為推測，需人工確認"}},"namespace":null,"intervalLabels":{"60000":"每分鐘"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"不輪詢"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60}],"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2,"unresolvedCount":0},"ui":{"pageTitle":"{title} 欄位對照 · 驗收","heading":"{title} 欄位對照","generatedComment":"本檔由 \`{command}\` 從 {dataPath} 生成，請勿手改。要改內容請改 JSON 後重跑。","faviconComment":"空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求","indexTitle":"欄位對照","indexLead":"每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。","indexSource":"資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。","indexColPage":"頁面","indexColRoute":"路由","indexColSections":"區塊","indexColFields":"欄位","indexColQueries":"查詢","indexColLoad":"輪詢負載（支 HTTP）","indexColAudited":"盤點日","indexColMarkdown":"LLM 版","indexQueries":"{n}（{polling} 輪詢）","indexLoad":"每小時 {n}","metaSections":"{n} 區塊","metaFields":"{n} 欄位","metaQueries":"{n} 查詢（{polling} 輪詢，單次全量 {http} 支 HTTP；每小時 {perHour} 支）","metaAudited":"盤點 {date}","progressVerified":"已驗","progressNoProblem":"無問題","progressProblem":"{n} 有問題","progressFiltered":"（篩選中：{n}）","btnReconcile":"Network 對帳","btnExport":"匯出問題清單","btnReset":"重置","btnClose":"關閉","btnCopy":"複製","btnCopyFilter":"複製篩選","btnCopyNetworkFilter":"複製 Network 篩選","copyFilterTitle":"複製「{filter}」貼進 DevTools Network filter","searchPlaceholder":"搜尋欄位 / response / 取值方式…","searchAria":"搜尋","groupLabel":"分組","groupAria":"分組方式","groupBySection":"依區塊","groupByQuery":"依查詢","filterSection":"區塊","filterQuery":"查詢","filterSource":"取得方式","filterFlag":"標記","statusLabel":"狀態","statusAria":"驗收狀態","statusAll":"全部","statusUnverified":"只看未驗","statusProblem":"只看有問題","statusStale":"定義已變更","colField":"UI 欄位","colQuery":"查詢","colResp":"response 欄位","colExpect":"預期取值 / 顯示","colActual":"畫面實際值","colData":"資料","colDisplay":"顯示","colNote":"備註","sideData":"資料","sideDisplay":"顯示","markOk":"正確","markNg":"有問題","markStaleHint":"這一側的定義在上次標記後改過了，請重驗","respNone":"—（不來自 API）","expandAria":"展開細節","staleTagTitle":"上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗","staleBoth":"定義已變更","staleData":"取值定義已變更","staleDisplay":"顯示定義已變更","checksTag":"{n} 檢查點","checksTagTitle":"展開可見 {n} 條驗證檢查點","actualPlaceholder":"畫面上看到的值","actualAria":"畫面實際值","notePlaceholder":"備註","noteAria":"備註","detailConcurrent":"併發 {n} 支","detailFilter":"篩選字串","detailEndpoint":"端點","detailSdk":"SDK","detailEnabledWhen":"啟用條件","detailFilterNote":"篩選提醒：","detailChecksTitle":"怎麼驗（{n} 條）","detailChecksGiven":"給定","detailChecksExpect":"畫面應該","detailEmptyRule":"空狀態：","detailNoteTitle":"註記","detailNoApi":"此欄位不來自任何 API，由前端生成。","groupProgress":"{done}/{total} 已驗","groupNg":"{n} 有問題","groupEmptyInfo":"ⓘ 空狀態","groupEmptyTitle":"空狀態：{rule}","groupNoQuery":"無查詢（前端生成）","groupNoQueryMeta":"X 軸 labels、硬編單位、local UI state","emptyState":"沒有符合條件的欄位","notesHeading":"已知落差 / 注意事項","reconcileTitle":"Network 對帳清單","reconcileLead":"進頁後 Network 面板應出現 {base} request（不含條件性請求與瀏覽器自身的資源請求）。","reconcileLoad":"其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支{breakdown}。","reconcileBreakdown":"（{parts}）","reconcilePart":"{label} × {http} 支 = {perHour}","reconcileColId":"#","reconcileColEndpoint":"端點","reconcileColFilter":"Network 篩選字串","reconcileColCount":"支數","reconcileColOrigin":"來源","reconcileColUsedBy":"餵給","reconcileCount":"{n} 支","reconcileNoField":"不對應任何欄位","reconcileNoFilter":"未設定","reconcileConditional":"條件性請求，共 {n} 支：","reportHeading":"## {title} 驗收問題清單","reportSummary":"已驗 {done}/{total} · 有問題 {problems}","reportSection":"### {section} · {field}","reportAllPass":"全數通過，無標記為有問題的欄位。","reportQuery":"- 查詢：{id} \`{endpoint}\`（{params}）","reportQueryNone":"- 查詢：—（前端生成）","reportResp":"- response：\`{value}\`","reportExpectValue":"- 預期取值：{source} —— {how}","reportExpectDisplay":"- 預期顯示：{display}","reportActual":"- 畫面實際值：\`{value}\`","reportFailed":"- 問題：{sides} ✗","reportNote":"- 備註：{note}","toastCopied":"已複製「{text}」，貼進 Network filter","toastCopyFailed":"複製失敗","toastReportCopied":"問題清單已複製為 markdown","toastReportFailed":"複製失敗，請改用瀏覽器主控台","toastReset":"已清空驗收標記","confirmReset":"確定清空全部驗收標記？目前已驗 {done}/{total}，此動作無法復原。","warnStorage":"無法寫入 localStorage","joinList":"、","joinSemi":"；","joinMeta":" ・ "}}</script>
+    <script type="application/json" id="fieldproof-data">{"page":"demo","title":"示範頁","route":"/demo","auditedAt":"2026-08-19","sources":["src/demo.ts"],"queries":{"Q1":{"endpoint":"GET /api/a","sdk":"getA","params":{"Page":"1"},"filter":"/api/a","refetch":60000,"note":"查詢註記","filterNote":"會一併匹配到 Q2","enabledWhen":"id 為有效數字"},"Q2":{"endpoint":"GET /api/b","sdk":"getB","params":{},"filter":"/api/b","refetch":"none","origin":"layout","conditional":true,"httpCount":3}},"sections":[{"key":"sec-one","kind":"card","title":"區塊一","fields":[{"id":"f1","label":"欄位一","query":"Q1","resp":"totals.x","source":"direct","how":"直取","display":"null → —","checks":[{"given":"response = null","expect":"—"}],"flags":["exception","fragile"],"note":"欄位註記","dataHash":"460c4e26","displayHash":"a315dc0a"}],"meta":{"位置":"左上"},"emptyRule":"無資料時整區塊收合"},{"key":"sec-two","kind":"table","title":"區塊二","fields":[{"id":"no-query","label":"純前端欄位","resp":null,"source":"fe-const","how":"前端硬編","display":"固定文字","dataHash":"7ae33f36","displayHash":"f27e569a"},{"id":"multi-query","label":"跨查詢欄位","query":["Q1","Q2"],"resp":"items[].x","source":"fe-derive","how":"以 Q1 的 id 對 Q2 查表","display":"查無對應時顯示原始 id","dataHash":"71d199f4","displayHash":"b01d0497"}]}],"flagMeta":{"exception":{"icon":"⚠","label":"違反全站慣例的刻意設計"},"backend-pending":{"icon":"🕓","label":"後端尚在研議 / 目前為權宜解"},"fragile":{"icon":"⚡","label":"易碎：依賴字串格式比對等"},"unresolved":{"icon":"❓","label":"來源未追出，本列為推測，需人工確認"}},"namespace":null,"intervalLabels":{"60000":"每分鐘"},"originLabels":{"card":"卡片資料","component":"共用元件自打","layout":"版面層"},"refetchLabels":{"Q1":"每分鐘","Q2":"不輪詢"},"sectionKindLabels":{"card":"卡片","chart":"圖表","filter":"篩選","form":"表單","table":"表格"},"sourceLabels":{"direct":"API 直取","backend-agg":"後端合計","fe-pick":"前端取某筆","fe-agg":"前端聚合","fe-derive":"前端換算","fe-const":"前端硬編"},"stats":{"baseHttpCount":1,"byInterval":[{"httpCount":1,"queryCount":1,"intervalMs":60000,"perHour":60}],"bySource":{"backend-agg":0,"direct":1,"fe-agg":0,"fe-const":1,"fe-derive":1,"fe-pick":0},"conditionalHttpCount":3,"fieldCount":3,"httpCount":4,"perHour":60,"pollingHttpCount":1,"pollingQueryCount":1,"queryCount":2,"sectionCount":2,"unresolvedCount":0},"ui":{"pageTitle":"{title} 欄位對照 · 驗收","heading":"{title} 欄位對照","generatedComment":"本檔由 \`{command}\` 從 {dataPath} 生成，請勿手改。要改內容請改 JSON 後重跑。","faviconComment":"空 favicon：擋掉瀏覽器對 /favicon.ico 的自動請求，讓 Network 面板保持只有零筆外部請求","indexTitle":"欄位對照","indexLead":"每個畫面上的數字，是哪支 API、什麼粒度、response 哪個欄位、直取還是前端算的。","indexSource":"資料來源為 {dataDir}/*.json，本頁與各頁 HTML / markdown 皆由 {command} 生成。","indexColPage":"頁面","indexColRoute":"路由","indexColSections":"區塊","indexColFields":"欄位","indexColQueries":"查詢","indexColLoad":"輪詢負載（支 HTTP）","indexColAudited":"盤點日","indexColMarkdown":"LLM 版","indexQueries":"{n}（{polling} 輪詢）","indexLoad":"每小時 {n}","metaSections":"{n} 區塊","metaFields":"{n} 欄位","metaQueries":"{n} 查詢（{polling} 輪詢，單次全量 {http} 支 HTTP；每小時 {perHour} 支）","metaAudited":"盤點 {date}","progressVerified":"已驗","progressNoProblem":"無問題","progressProblem":"{n} 有問題","progressFiltered":"（篩選中：{n}）","btnReconcile":"Network 對帳","btnExport":"匯出問題清單","btnReset":"重置","btnClose":"關閉","btnCopy":"複製","btnCopyFilter":"複製篩選","btnCopyNetworkFilter":"複製 Network 篩選","copyFilterTitle":"複製「{filter}」貼進 DevTools Network filter","searchPlaceholder":"搜尋欄位 / response / 取值方式…","searchAria":"搜尋","searchShortcut":"按 / 聚焦搜尋，Esc 清除","warnUrlState":"網址中有無法辨識的篩選條件，已略過：","groupLabel":"分組","groupAria":"分組方式","groupBySection":"依區塊","groupByQuery":"依查詢","filterSection":"區塊","filterQuery":"查詢","filterSource":"取得方式","filterFlag":"標記","statusLabel":"狀態","statusAria":"驗收狀態","statusAll":"全部","statusUnverified":"只看未驗","statusProblem":"只看有問題","statusStale":"定義已變更","colField":"UI 欄位","colQuery":"查詢","colResp":"response 欄位","colExpect":"預期取值 / 顯示","colActual":"畫面實際值","colData":"資料","colDisplay":"顯示","colNote":"備註","sideData":"資料","sideDisplay":"顯示","markOk":"正確","markNg":"有問題","markStaleHint":"這一側的定義在上次標記後改過了，請重驗","respNone":"—（不來自 API）","expandAria":"展開細節","staleTagTitle":"上次標記後，這個欄位的定義在 JSON 裡改過了，請重驗","staleBoth":"定義已變更","staleData":"取值定義已變更","staleDisplay":"顯示定義已變更","checksTag":"{n} 檢查點","checksTagTitle":"展開可見 {n} 條驗證檢查點","actualPlaceholder":"畫面上看到的值","actualAria":"畫面實際值","notePlaceholder":"備註","noteAria":"備註","detailConcurrent":"併發 {n} 支","detailFilter":"篩選字串","detailEndpoint":"端點","detailSdk":"SDK","detailEnabledWhen":"啟用條件","detailFilterNote":"篩選提醒：","detailChecksTitle":"怎麼驗（{n} 條）","detailChecksGiven":"給定","detailChecksExpect":"畫面應該","detailEmptyRule":"空狀態：","detailNoteTitle":"註記","detailNoApi":"此欄位不來自任何 API，由前端生成。","groupProgress":"{done}/{total} 已驗","groupNg":"{n} 有問題","groupEmptyInfo":"ⓘ 空狀態","groupEmptyTitle":"空狀態：{rule}","groupNoQuery":"無查詢（前端生成）","groupNoQueryMeta":"X 軸 labels、硬編單位、local UI state","emptyState":"沒有符合條件的欄位","notesHeading":"已知落差 / 注意事項","reconcileTitle":"Network 對帳清單","reconcileLead":"進頁後 Network 面板應出現 {base} request（不含條件性請求與瀏覽器自身的資源請求）。","reconcileLoad":"其中輪詢查詢 {polling} 支，之後每小時再 {perHour} 支{breakdown}。","reconcileBreakdown":"（{parts}）","reconcilePart":"{label} × {http} 支 = {perHour}","reconcileColId":"#","reconcileColEndpoint":"端點","reconcileColFilter":"Network 篩選字串","reconcileColCount":"支數","reconcileColOrigin":"來源","reconcileColUsedBy":"餵給","reconcileCount":"{n} 支","reconcileNoField":"不對應任何欄位","reconcileNoFilter":"未設定","reconcileConditional":"條件性請求，共 {n} 支：","reportHeading":"## {title} 驗收問題清單","reportSummary":"已驗 {done}/{total} · 有問題 {problems}","reportSection":"### {section} · {field}","reportAllPass":"全數通過，無標記為有問題的欄位。","reportQuery":"- 查詢：{id} \`{endpoint}\`（{params}）","reportQueryNone":"- 查詢：—（前端生成）","reportResp":"- response：\`{value}\`","reportExpectValue":"- 預期取值：{source} —— {how}","reportExpectDisplay":"- 預期顯示：{display}","reportActual":"- 畫面實際值：\`{value}\`","reportFailed":"- 問題：{sides} ✗","reportNote":"- 備註：{note}","toastCopied":"已複製「{text}」，貼進 Network filter","toastCopyFailed":"複製失敗","toastReportCopied":"問題清單已複製為 markdown","toastReportFailed":"複製失敗，請改用瀏覽器主控台","toastReset":"已清空驗收標記","confirmReset":"確定清空全部驗收標記？目前已驗 {done}/{total}，此動作無法復原。","warnStorage":"無法寫入 localStorage","joinList":"、","joinSemi":"；","joinMeta":" ・ "}}</script>
     <script>
 /* fieldproof 驗收介面。無框架、無外部請求；由 render/html.ts inline 進生成的 HTML。 */
 (() => {
@@ -1093,14 +1279,105 @@ tr.reconcile--conditional td {
   let marks = read(STORE_KEY, {});
   const prefs = read(PREF_KEY, {});
 
+  // ---------- URL 狀態 ----------
+
+  /**
+   * 篩選條件同步到 query string，讓「我看到的這個畫面」可以重整、可以貼給別人。
+   *
+   * 只放篩選，不放驗收標記——標記是個人的一次驗收動作，屬於 localStorage；
+   * 混進可分享的 URL 會讓兩者的界線消失。展開狀態同理，那是閱讀過程不是結論。
+   */
+  const URL_KEYS = {
+    q: 'search',
+    g: 'group',
+    s: 'status',
+    sec: 'sections',
+    qry: 'queries',
+    src: 'sources',
+    flag: 'flags',
+  };
+
+  const VALID_GROUP = ['section', 'query'];
+  const VALID_STATUS = ['all', 'unverified', 'problem', 'stale'];
+
+  /** 讀 URL；無效值丟掉而不是照單全收——留著會讓篩選變成「什麼都不符合」，
+   *  使用者只看到一張空表卻不知道為什麼。丟掉的值記進 console 供追查。 */
+  function readUrlState() {
+    const params = new URLSearchParams(location.search);
+    const dropped = [];
+
+    const one = (key, valid, fallback) => {
+      const raw = params.get(key);
+      if (raw === null) return fallback;
+      if (valid.includes(raw)) return raw;
+      dropped.push(\`\${key}=\${raw}\`);
+      return fallback;
+    };
+
+    const many = (key, valid) => {
+      const raw = params.get(key);
+      if (!raw) return new Set();
+      const kept = [];
+      for (const value of raw.split(',')) {
+        if (!value) continue;
+        if (valid.has(value)) kept.push(value);
+        else dropped.push(\`\${key}=\${value}\`);
+      }
+      return new Set(kept);
+    };
+
+    const sectionKeys = new Set(PAGE.sections.map((section) => section.key));
+    const queryKeys = new Set([...Object.keys(PAGE.queries), '__none__']);
+
+    const parsed = {
+      search: (params.get('q') || '').trim().toLowerCase(),
+      group: one('g', VALID_GROUP, null),
+      status: one('s', VALID_STATUS, 'all'),
+      sections: many('sec', sectionKeys),
+      queries: many('qry', queryKeys),
+      sources: many('src', new Set(Object.keys(SOURCE_LABELS))),
+      flags: many('flag', new Set(Object.keys(FLAG_META))),
+    };
+
+    if (dropped.length) console.warn(T.warnUrlState, dropped);
+    return parsed;
+  }
+
+  /** 把目前篩選寫回 URL。只寫非預設值，全預設時連 \`?\` 都不留。 */
+  function syncUrl() {
+    const params = new URLSearchParams();
+    if (state.search) params.set('q', state.search);
+    if (state.group !== 'section') params.set('g', state.group);
+    if (state.status !== 'all') params.set('s', state.status);
+    for (const [key, field] of Object.entries(URL_KEYS)) {
+      const value = state[field];
+      if (value instanceof Set && value.size) params.set(key, [...value].join(','));
+    }
+
+    // 逗號在 query string 裡合法，還原回來讓分享出去的網址讀得懂。
+    const query = params.toString().replace(/%2C/g, ',');
+    try {
+      history.replaceState(
+        null,
+        '',
+        \`\${location.pathname}\${query ? \`?\${query}\` : ''}\${location.hash}\`,
+      );
+    } catch {
+      /* 某些協定 / 沙箱下不給改 URL。同步不了不影響驗收本身，讓它去。 */
+    }
+  }
+
+  const fromUrl = readUrlState();
+
   const state = {
-    group: prefs.group === 'query' ? 'query' : 'section',
-    search: '',
-    sections: new Set(),
-    queries: new Set(),
-    sources: new Set(),
-    flags: new Set(),
-    status: 'all',
+    // URL 是刻意分享來的意圖，優先於這台機器上記住的偏好。
+    group: fromUrl.group || (prefs.group === 'query' ? 'query' : 'section'),
+    search: fromUrl.search,
+    sections: fromUrl.sections,
+    queries: fromUrl.queries,
+    sources: fromUrl.sources,
+    flags: fromUrl.flags,
+    status: fromUrl.status,
     expanded: new Set(),
   };
 
@@ -1284,11 +1561,11 @@ tr.reconcile--conditional td {
     return \`<span class="src src--\${esc(source)}">\${esc(SOURCE_LABELS[source])}</span>\`;
   }
 
-  function flagIcons(field) {
+  function flagIcons(field, id) {
     if (!field.flags || !field.flags.length) return '';
     const title = field.flags.map((f) => FLAG_META[f].label).join(T.joinSemi);
     const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
-    return \`<span class="field-flags" title="\${esc(title)}">\${icons}</span>\`;
+    return \`<span class="field-flags" data-expand="\${esc(id)}" title="\${esc(title)}">\${icons}</span>\`;
   }
 
   function queryChips(row) {
@@ -1301,7 +1578,7 @@ tr.reconcile--conditional td {
               .map(([k, v]) => \`\${k}=\${v}\`)
               .join('\\n')}\`
           : id;
-        return \`<span class="qchip" title="\${esc(title)}">\${esc(id)}</span>\`;
+        return \`<span class="qchip" data-expand="\${esc(row.id)}" title="\${esc(title)}">\${esc(id)}</span>\`;
       })
       .join('');
   }
@@ -1332,7 +1609,7 @@ tr.reconcile--conditional td {
     if (!data && !display) return '';
 
     const label = data && display ? T.staleBoth : data ? T.staleData : T.staleDisplay;
-    return \`<span class="stale-tag" title="\${esc(T.staleTagTitle)}">⟳ \${esc(label)}</span>\`;
+    return \`<span class="stale-tag" data-expand="\${esc(id)}" title="\${esc(T.staleTagTitle)}">⟳ \${esc(label)}</span>\`;
   }
 
   function rowHtml(row) {
@@ -1349,13 +1626,13 @@ tr.reconcile--conditional td {
       \`\${stale ? ' row--stale' : ''}" data-id="\${esc(row.id)}">\` +
       \`<td class="cell-expand"><button class="expand" type="button" data-expand="\${esc(row.id)}" \` +
       \`aria-expanded="\${expanded}" aria-label="\${esc(T.expandAria)}">\${expanded ? '▾' : '▸'}</button></td>\` +
-      \`<td><span class="field-label">\${esc(row.field.label)}</span>\${flagIcons(row.field)}\` +
+      \`<td><span class="field-label">\${esc(row.field.label)}</span>\${flagIcons(row.field, row.id)}\` +
       staleTagHtml(row.id) +
       (row.field.checks
-        ? \`<span class="checks-tag" title="\${esc(t('checksTagTitle', { n: row.field.checks.length }))}">\${esc(t('checksTag', { n: row.field.checks.length }))}</span>\`
+        ? \`<span class="checks-tag" data-expand="\${esc(row.id)}" title="\${esc(t('checksTagTitle', { n: row.field.checks.length }))}">\${esc(t('checksTag', { n: row.field.checks.length }))}</span>\`
         : '') +
       \`</td>\` +
-      \`<td>\${queryChips(row)}</td>\` +
+      \`<td class="cell-query">\${queryChips(row)}</td>\` +
       \`<td>\${resp}</td>\` +
       \`<td><div class="how"><span>\${srcChip(row.field.source)}\${esc(row.field.how)}</span>\` +
       \`<span class="how__display">\${esc(row.field.display)}</span></div></td>\` +
@@ -1555,6 +1832,7 @@ tr.reconcile--conditional td {
       : \`<tr><td colspan="9"><div class="empty-state">\${esc(T.emptyState)}</div></td></tr>\`;
 
     renderProgress(rows.length);
+    syncUrl();
   }
 
   function renderProgress(visible) {
@@ -1594,7 +1872,9 @@ tr.reconcile--conditional td {
     }
 
     rowEl.classList.toggle('row--expanded', willExpand);
-    const btn = rowEl.querySelector('[data-expand]');
+    // 用 \`.expand\` 而非 \`[data-expand]\`：帶 tooltip 的 chip / tag 現在也帶 data-expand，
+    // 靠 DOM 順序去撈第一個等於把外觀更新綁在欄位排列上。
+    const btn = rowEl.querySelector('.expand');
     btn.setAttribute('aria-expanded', String(willExpand));
     btn.textContent = willExpand ? '▾' : '▸';
   }
@@ -1657,19 +1937,25 @@ tr.reconcile--conditional td {
       .map(
         (item) =>
           \`<label class="multi__item"><input type="checkbox" name="\${esc(id)}" \` +
-          \`value="\${esc(item.value)}">\` +
+          \`value="\${esc(item.value)}"\${target.has(item.value) ? ' checked' : ''}>\` +
           \`<span>\${esc(item.label)}</span><span>\${item.count}</span></label>\`,
       )
       .join('');
+
+    // 初值與後續變更共用同一段——分開寫兩份，URL 帶進來的勾選就會配上一個空的計數。
+    const badge = host.querySelector('.multi__count');
+    const patchBadge = () => {
+      badge.textContent = target.size || '';
+      badge.style.display = target.size ? '' : 'none';
+    };
+    patchBadge();
 
     host.addEventListener('change', (event) => {
       const input = event.target;
       if (input.type !== 'checkbox') return;
       if (input.checked) target.add(input.value);
       else target.delete(input.value);
-      const badge = host.querySelector('.multi__count');
-      badge.textContent = target.size || '';
-      badge.style.display = target.size ? '' : 'none';
+      patchBadge();
       render();
     });
   }
@@ -1879,8 +2165,10 @@ tr.reconcile--conditional td {
       return;
     }
 
-    // 只有展開鈕能展開。整列可點的話，拖曳選取與雙擊選字都會被當成展開意圖——
-    // 兩者的 mousedown / mouseup 都落在同一列，瀏覽器照樣發 click，擋不掉。
+    // 可展開的只有展開鈕與帶 tooltip 的 chip / tag（皆帶 data-expand）。整列可點的話，
+    // 拖曳選取與雙擊選字都會被當成展開意圖——兩者的 mousedown / mouseup 都落在同一列，
+    // 瀏覽器照樣發 click，擋不掉。chip / tag 不在此列：它們是標籤而非要複製的內文，
+    // 且 \`cursor: help\` 已經表明「這裡有更多資訊」，展開明細正是那些資訊。
     const expandBtn = event.target.closest('[data-expand]');
     if (expandBtn) toggleExpand(expandBtn.dataset.expand);
   });
@@ -1899,9 +2187,39 @@ tr.reconcile--conditional td {
     // 不重繪：重繪會讓正在打字的輸入框失焦。值已即時寫入 marks，離開頁面前 debounce 存檔。
   });
 
-  document.getElementById('search').addEventListener('input', (event) => {
+  const searchEl = document.getElementById('search');
+  searchEl.addEventListener('input', (event) => {
     state.search = event.target.value.trim().toLowerCase();
     render();
+  });
+
+  /**
+   * \`/\` 聚焦搜尋、Esc 清除。
+   *
+   * 驗收時雙手多半在鍵盤上（一邊看 DevTools 一邊打實際值），把手移到搜尋框是
+   * 這個介面最頻繁的一次無謂移動。
+   */
+  document.addEventListener('keydown', (event) => {
+    const el = document.activeElement;
+    const typing =
+      el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+    if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      // 正在打字時 \`/\` 就只是一個字元；對話框開著時搜尋框在它後面，搶焦點沒有意義。
+      if (typing || reconcileDlg.open) return;
+      event.preventDefault();
+      searchEl.focus();
+      searchEl.select();
+      return;
+    }
+
+    if (event.key === 'Escape' && el === searchEl && searchEl.value) {
+      // 只在真的清得掉東西時攔截，否則讓 Esc 冒泡出去做它原本該做的事。
+      event.preventDefault();
+      searchEl.value = '';
+      state.search = '';
+      render();
+    }
   });
 
   for (const btn of document.querySelectorAll('[data-group]')) {
@@ -2007,8 +2325,54 @@ tr.reconcile--conditional td {
     state.flags,
   );
 
+  /**
+   * 篩選面板預設向右展開，靠近視窗右緣的那幾個會超出去——露在外面的選項點不到。
+   * 這在寬螢幕就存在，只是篩選器排不到那麼右邊；窄螢幕讓它從偶發變成必然。
+   *
+   * 翻向左之前先還原，否則視窗變寬之後它會一直記得上次的方向。
+   */
+  for (const panelHost of document.querySelectorAll('.multi')) {
+    panelHost.addEventListener('toggle', () => {
+      if (!panelHost.open) return;
+      const panel = panelHost.querySelector('.multi__panel');
+      panel.classList.remove('multi__panel--flip');
+      const room = document.documentElement.clientWidth - 8;
+      if (panel.getBoundingClientRect().right > room) {
+        panel.classList.add('multi__panel--flip');
+      }
+    });
+  }
+
   for (const btn of document.querySelectorAll('[data-group]')) {
     btn.setAttribute('aria-pressed', String(btn.dataset.group === state.group));
+  }
+
+  for (const btn of document.querySelectorAll('[data-status]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.status === state.status));
+  }
+
+  searchEl.value = state.search;
+
+  /**
+   * 分組列黏在表頭下緣，所以得知道表頭多高。表頭高度會隨斷點的 padding 變，
+   * 寫死就會在窄螢幕錯位——分組標題會蓋在它自己的第一列上（踩過）。
+   *
+   * 只觀察 thead 一個元素：工具列與篩選列的高度已經由 flex 版面吸收掉了。
+   */
+  const theadEl = document.querySelector('thead');
+
+  function syncTheadHeight() {
+    document.documentElement.style.setProperty(
+      '--thead-h',
+      \`\${theadEl.getBoundingClientRect().height}px\`,
+    );
+  }
+
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(syncTheadHeight).observe(theadEl);
+  } else {
+    syncTheadHeight();
+    window.addEventListener('resize', syncTheadHeight);
   }
 
   render();
@@ -2060,6 +2424,10 @@ exports[`renderIndex > 逐字輸出維持不變 1`] = `
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC',
     'Microsoft JhengHei', sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* 表頭實高，由 app.js 量出來給分組列當 sticky 位移。這裡只是 JS 跑完前的
+     fallback——寫死會在斷點切換（padding 變了）之後錯位。 */
+  --thead-h: 32px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2090,7 +2458,27 @@ exports[`renderIndex > 逐字輸出維持不變 1`] = `
   box-sizing: border-box;
 }
 
+/**
+ * 版面骨架：工具列與篩選列固定，表格區自己捲。
+ *
+ * 表格縮到不能再縮時總得有人橫捲。若讓 body 去捲，sticky 的工具列與表頭會被一起
+ * 水平帶走——標題與「UI 欄位」那幾欄直接移出畫面，比看不到最右邊那幾欄更糟。
+ *
+ * 交給 .table-wrap 捲，就必須讓它**同時**接管垂直方向：\`overflow-x: auto\` 會讓
+ * \`overflow-y\` 從 visible 被算成 auto，該容器於是成為 sticky 的包含區塊；容器自己
+ * 不捲動的話，表頭的 sticky 等於沒有。兩個方向一起接管，表頭才黏得住容器頂端。
+ *
+ * 附帶效果：工具列與篩選列不必再是 sticky，也沒有人需要知道它們多高了。
+ */
+html,
 body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 0;
   background: var(--bg);
   color: var(--text);
@@ -2103,12 +2491,13 @@ body {
 /* ---------- toolbar ---------- */
 
 .toolbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 30;
+  flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 24px;
+  gap: 12px 24px;
   padding: 12px 20px;
   background: var(--bg-raised);
   border-bottom: 1px solid var(--border);
@@ -2240,9 +2629,9 @@ input:focus-visible {
 /* ---------- 篩選列 ---------- */
 
 .filters {
-  position: sticky;
-  top: 68px; /* = toolbar 高度（實測） */
+  position: relative;
   z-index: 25;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2257,8 +2646,38 @@ input:focus-visible {
   font-size: 11.5px;
 }
 
-.search {
+.search-wrap {
+  position: relative;
   flex: 0 1 280px;
+  display: flex;
+}
+
+.search-kbd {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  padding: 0 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  line-height: 15px;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+/* 有焦點或有內容時讓開，否則會蓋住使用者打的字。 */
+.search:focus + .search-kbd,
+.search:not(:placeholder-shown) + .search-kbd {
+  opacity: 0;
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
   padding: 5px 10px;
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -2317,6 +2736,13 @@ input:focus-visible {
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
 }
 
+/* 貼近視窗右緣時改為靠右展開，由 app.js 量到才加。純 CSS 翻不了向——
+   要知道面板會不會超出視窗，得先量它。 */
+.multi__panel--flip {
+  left: auto;
+  right: 0;
+}
+
 .multi__item {
   display: flex;
   align-items: center;
@@ -2340,6 +2766,10 @@ input:focus-visible {
 /* ---------- 表格 ---------- */
 
 .table-wrap {
+  flex: 1;
+  /* flex 子項的預設 min-height 是 auto，不歸零它就撐得比容器高，永遠不會捲。 */
+  min-height: 0;
+  overflow: auto;
   padding: 0 20px 64px;
 }
 
@@ -2352,7 +2782,7 @@ table {
 
 thead th {
   position: sticky;
-  top: 117px; /* = toolbar 68 + filters 49 */
+  top: 0;
   z-index: 20;
   padding: 7px 9px;
   background: var(--bg-subtle);
@@ -2386,7 +2816,7 @@ tr.group > td {
   /* 單行且高度固定：sticky 元素會覆蓋捲過它的內容，行高越小遮蔽越少。
      完整的空狀態規則與查詢參數改由 title tooltip 與展開區承載。 */
   position: sticky;
-  top: 149px; /* = toolbar 68 + filters 49 + thead 32 */
+  top: var(--thead-h);
   z-index: 15;
   padding: 9px 10px 8px;
   background: var(--bg-raised);
@@ -2463,6 +2893,8 @@ tr.group:first-child > td {
 .expand {
   position: absolute;
   inset: 0;
+  display: flex;
+  align-items: flex-start;
   padding: 8px 9px;
   border: 0;
   background: none;
@@ -2760,12 +3192,127 @@ tr.detail > td {
 
 /* 窄視窗保護：主要情境為全螢幕（≥1100px），此處只求不破版 */
 
+/* 列印時整頁展開——上面那組 overflow 會讓印出來的只剩第一頁。 */
+@media print {
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+  }
+
+  .table-wrap {
+    overflow: visible;
+  }
+}
+
+/* ---------- 窄螢幕 ----------
+
+   策略是「收欄位 + 讓內容重排」，不是「橫向捲動」。表格若放進 overflow-x 容器，
+   該容器就成了 sticky 的包含區塊（overflow-x: auto 會把 overflow-y 從 visible
+   算成 auto），表頭的 sticky 立刻失效——那是驗收時最不能丟的東西。
+
+   被收起來的欄位都在展開明細裡有完整版本，不是資訊消失。 */
+
 @media (max-width: 1100px) {
   .col-actual,
   .col-note,
   .cell-actual,
   .cell-note {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  /* colgroup 的固定寬度在這裡退成建議值，讓「取得方式」那欄自己去搶剩餘空間。 */
+  table {
+    table-layout: auto;
+  }
+
+  .toolbar {
+    gap: 10px 16px;
+    padding: 10px 14px;
+  }
+
+  /* 撐開左右兩端的 spacer 在換行後只會多擠出一列空白。 */
+  .toolbar__spacer {
+    display: none;
+  }
+
+  .filters {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .table-wrap {
+    padding: 0 14px 64px;
+  }
+
+  tbody td {
+    padding: 7px 6px;
+  }
+
+  .expand {
+    padding: 7px 6px;
+  }
+
+  thead th {
+    padding: 6px 6px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 查詢欄收起：qchip 的內容在展開明細的查詢框裡有完整端點與參數。 */
+  .col-query,
+  .cell-query {
+    display: none;
+  }
+
+  .search-wrap {
+    flex: 1 1 100%;
+  }
+
+  .progress {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .toolbar h1 {
+    font-size: 14px;
+  }
+
+  /* 320px 的最小欄寬在這個寬度會直接溢出容器。 */
+  .detail__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  }
+
+  /* 絕對定位的下拉面板一旦超出視窗右緣，露在外面的那些選項就點不到了。
+     這個寬度下改成在流內展開：撐開 .filters 而不是蓋在它外面。
+     .filters 撐高後表頭位置由 ResizeObserver 跟上，不會錯位。 */
+  .multi__panel {
+    position: static;
+    min-width: 0;
+    max-height: 220px;
+    box-shadow: none;
+  }
+}
+
+/* 到這個寬度，剩下的欄位（欄位名 / response / 取得方式 / 資料 ✓ / 顯示 ✓）
+   全都是驗收當下要對照的，沒有一欄能再收。把表格的左右留白讓出來換那最後幾十
+   px——貼邊比整頁橫捲好，橫捲會連 sticky 的工具列一起帶走。 */
+@media (max-width: 560px) {
+  .table-wrap {
+    padding: 0 0 64px;
+  }
+
+  tbody td,
+  thead th {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .expand {
+    padding-left: 5px;
+    padding-right: 5px;
   }
 }
 

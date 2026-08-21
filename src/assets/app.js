@@ -31,14 +31,105 @@
   let marks = read(STORE_KEY, {});
   const prefs = read(PREF_KEY, {});
 
+  // ---------- URL 狀態 ----------
+
+  /**
+   * 篩選條件同步到 query string，讓「我看到的這個畫面」可以重整、可以貼給別人。
+   *
+   * 只放篩選，不放驗收標記——標記是個人的一次驗收動作，屬於 localStorage；
+   * 混進可分享的 URL 會讓兩者的界線消失。展開狀態同理，那是閱讀過程不是結論。
+   */
+  const URL_KEYS = {
+    q: 'search',
+    g: 'group',
+    s: 'status',
+    sec: 'sections',
+    qry: 'queries',
+    src: 'sources',
+    flag: 'flags',
+  };
+
+  const VALID_GROUP = ['section', 'query'];
+  const VALID_STATUS = ['all', 'unverified', 'problem', 'stale'];
+
+  /** 讀 URL；無效值丟掉而不是照單全收——留著會讓篩選變成「什麼都不符合」，
+   *  使用者只看到一張空表卻不知道為什麼。丟掉的值記進 console 供追查。 */
+  function readUrlState() {
+    const params = new URLSearchParams(location.search);
+    const dropped = [];
+
+    const one = (key, valid, fallback) => {
+      const raw = params.get(key);
+      if (raw === null) return fallback;
+      if (valid.includes(raw)) return raw;
+      dropped.push(`${key}=${raw}`);
+      return fallback;
+    };
+
+    const many = (key, valid) => {
+      const raw = params.get(key);
+      if (!raw) return new Set();
+      const kept = [];
+      for (const value of raw.split(',')) {
+        if (!value) continue;
+        if (valid.has(value)) kept.push(value);
+        else dropped.push(`${key}=${value}`);
+      }
+      return new Set(kept);
+    };
+
+    const sectionKeys = new Set(PAGE.sections.map((section) => section.key));
+    const queryKeys = new Set([...Object.keys(PAGE.queries), '__none__']);
+
+    const parsed = {
+      search: (params.get('q') || '').trim().toLowerCase(),
+      group: one('g', VALID_GROUP, null),
+      status: one('s', VALID_STATUS, 'all'),
+      sections: many('sec', sectionKeys),
+      queries: many('qry', queryKeys),
+      sources: many('src', new Set(Object.keys(SOURCE_LABELS))),
+      flags: many('flag', new Set(Object.keys(FLAG_META))),
+    };
+
+    if (dropped.length) console.warn(T.warnUrlState, dropped);
+    return parsed;
+  }
+
+  /** 把目前篩選寫回 URL。只寫非預設值，全預設時連 `?` 都不留。 */
+  function syncUrl() {
+    const params = new URLSearchParams();
+    if (state.search) params.set('q', state.search);
+    if (state.group !== 'section') params.set('g', state.group);
+    if (state.status !== 'all') params.set('s', state.status);
+    for (const [key, field] of Object.entries(URL_KEYS)) {
+      const value = state[field];
+      if (value instanceof Set && value.size) params.set(key, [...value].join(','));
+    }
+
+    // 逗號在 query string 裡合法，還原回來讓分享出去的網址讀得懂。
+    const query = params.toString().replace(/%2C/g, ',');
+    try {
+      history.replaceState(
+        null,
+        '',
+        `${location.pathname}${query ? `?${query}` : ''}${location.hash}`,
+      );
+    } catch {
+      /* 某些協定 / 沙箱下不給改 URL。同步不了不影響驗收本身，讓它去。 */
+    }
+  }
+
+  const fromUrl = readUrlState();
+
   const state = {
-    group: prefs.group === 'query' ? 'query' : 'section',
-    search: '',
-    sections: new Set(),
-    queries: new Set(),
-    sources: new Set(),
-    flags: new Set(),
-    status: 'all',
+    // URL 是刻意分享來的意圖，優先於這台機器上記住的偏好。
+    group: fromUrl.group || (prefs.group === 'query' ? 'query' : 'section'),
+    search: fromUrl.search,
+    sections: fromUrl.sections,
+    queries: fromUrl.queries,
+    sources: fromUrl.sources,
+    flags: fromUrl.flags,
+    status: fromUrl.status,
     expanded: new Set(),
   };
 
@@ -222,11 +313,11 @@
     return `<span class="src src--${esc(source)}">${esc(SOURCE_LABELS[source])}</span>`;
   }
 
-  function flagIcons(field) {
+  function flagIcons(field, id) {
     if (!field.flags || !field.flags.length) return '';
     const title = field.flags.map((f) => FLAG_META[f].label).join(T.joinSemi);
     const icons = field.flags.map((f) => FLAG_META[f].icon).join('');
-    return `<span class="field-flags" title="${esc(title)}">${icons}</span>`;
+    return `<span class="field-flags" data-expand="${esc(id)}" title="${esc(title)}">${icons}</span>`;
   }
 
   function queryChips(row) {
@@ -239,7 +330,7 @@
               .map(([k, v]) => `${k}=${v}`)
               .join('\n')}`
           : id;
-        return `<span class="qchip" title="${esc(title)}">${esc(id)}</span>`;
+        return `<span class="qchip" data-expand="${esc(row.id)}" title="${esc(title)}">${esc(id)}</span>`;
       })
       .join('');
   }
@@ -270,7 +361,7 @@
     if (!data && !display) return '';
 
     const label = data && display ? T.staleBoth : data ? T.staleData : T.staleDisplay;
-    return `<span class="stale-tag" title="${esc(T.staleTagTitle)}">⟳ ${esc(label)}</span>`;
+    return `<span class="stale-tag" data-expand="${esc(id)}" title="${esc(T.staleTagTitle)}">⟳ ${esc(label)}</span>`;
   }
 
   function rowHtml(row) {
@@ -287,13 +378,13 @@
       `${stale ? ' row--stale' : ''}" data-id="${esc(row.id)}">` +
       `<td class="cell-expand"><button class="expand" type="button" data-expand="${esc(row.id)}" ` +
       `aria-expanded="${expanded}" aria-label="${esc(T.expandAria)}">${expanded ? '▾' : '▸'}</button></td>` +
-      `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field)}` +
+      `<td><span class="field-label">${esc(row.field.label)}</span>${flagIcons(row.field, row.id)}` +
       staleTagHtml(row.id) +
       (row.field.checks
-        ? `<span class="checks-tag" title="${esc(t('checksTagTitle', { n: row.field.checks.length }))}">${esc(t('checksTag', { n: row.field.checks.length }))}</span>`
+        ? `<span class="checks-tag" data-expand="${esc(row.id)}" title="${esc(t('checksTagTitle', { n: row.field.checks.length }))}">${esc(t('checksTag', { n: row.field.checks.length }))}</span>`
         : '') +
       `</td>` +
-      `<td>${queryChips(row)}</td>` +
+      `<td class="cell-query">${queryChips(row)}</td>` +
       `<td>${resp}</td>` +
       `<td><div class="how"><span>${srcChip(row.field.source)}${esc(row.field.how)}</span>` +
       `<span class="how__display">${esc(row.field.display)}</span></div></td>` +
@@ -493,6 +584,7 @@
       : `<tr><td colspan="9"><div class="empty-state">${esc(T.emptyState)}</div></td></tr>`;
 
     renderProgress(rows.length);
+    syncUrl();
   }
 
   function renderProgress(visible) {
@@ -532,7 +624,9 @@
     }
 
     rowEl.classList.toggle('row--expanded', willExpand);
-    const btn = rowEl.querySelector('[data-expand]');
+    // 用 `.expand` 而非 `[data-expand]`：帶 tooltip 的 chip / tag 現在也帶 data-expand，
+    // 靠 DOM 順序去撈第一個等於把外觀更新綁在欄位排列上。
+    const btn = rowEl.querySelector('.expand');
     btn.setAttribute('aria-expanded', String(willExpand));
     btn.textContent = willExpand ? '▾' : '▸';
   }
@@ -595,19 +689,25 @@
       .map(
         (item) =>
           `<label class="multi__item"><input type="checkbox" name="${esc(id)}" ` +
-          `value="${esc(item.value)}">` +
+          `value="${esc(item.value)}"${target.has(item.value) ? ' checked' : ''}>` +
           `<span>${esc(item.label)}</span><span>${item.count}</span></label>`,
       )
       .join('');
+
+    // 初值與後續變更共用同一段——分開寫兩份，URL 帶進來的勾選就會配上一個空的計數。
+    const badge = host.querySelector('.multi__count');
+    const patchBadge = () => {
+      badge.textContent = target.size || '';
+      badge.style.display = target.size ? '' : 'none';
+    };
+    patchBadge();
 
     host.addEventListener('change', (event) => {
       const input = event.target;
       if (input.type !== 'checkbox') return;
       if (input.checked) target.add(input.value);
       else target.delete(input.value);
-      const badge = host.querySelector('.multi__count');
-      badge.textContent = target.size || '';
-      badge.style.display = target.size ? '' : 'none';
+      patchBadge();
       render();
     });
   }
@@ -817,8 +917,10 @@
       return;
     }
 
-    // 只有展開鈕能展開。整列可點的話，拖曳選取與雙擊選字都會被當成展開意圖——
-    // 兩者的 mousedown / mouseup 都落在同一列，瀏覽器照樣發 click，擋不掉。
+    // 可展開的只有展開鈕與帶 tooltip 的 chip / tag（皆帶 data-expand）。整列可點的話，
+    // 拖曳選取與雙擊選字都會被當成展開意圖——兩者的 mousedown / mouseup 都落在同一列，
+    // 瀏覽器照樣發 click，擋不掉。chip / tag 不在此列：它們是標籤而非要複製的內文，
+    // 且 `cursor: help` 已經表明「這裡有更多資訊」，展開明細正是那些資訊。
     const expandBtn = event.target.closest('[data-expand]');
     if (expandBtn) toggleExpand(expandBtn.dataset.expand);
   });
@@ -837,9 +939,39 @@
     // 不重繪：重繪會讓正在打字的輸入框失焦。值已即時寫入 marks，離開頁面前 debounce 存檔。
   });
 
-  document.getElementById('search').addEventListener('input', (event) => {
+  const searchEl = document.getElementById('search');
+  searchEl.addEventListener('input', (event) => {
     state.search = event.target.value.trim().toLowerCase();
     render();
+  });
+
+  /**
+   * `/` 聚焦搜尋、Esc 清除。
+   *
+   * 驗收時雙手多半在鍵盤上（一邊看 DevTools 一邊打實際值），把手移到搜尋框是
+   * 這個介面最頻繁的一次無謂移動。
+   */
+  document.addEventListener('keydown', (event) => {
+    const el = document.activeElement;
+    const typing =
+      el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+
+    if (event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      // 正在打字時 `/` 就只是一個字元；對話框開著時搜尋框在它後面，搶焦點沒有意義。
+      if (typing || reconcileDlg.open) return;
+      event.preventDefault();
+      searchEl.focus();
+      searchEl.select();
+      return;
+    }
+
+    if (event.key === 'Escape' && el === searchEl && searchEl.value) {
+      // 只在真的清得掉東西時攔截，否則讓 Esc 冒泡出去做它原本該做的事。
+      event.preventDefault();
+      searchEl.value = '';
+      state.search = '';
+      render();
+    }
   });
 
   for (const btn of document.querySelectorAll('[data-group]')) {
@@ -945,8 +1077,54 @@
     state.flags,
   );
 
+  /**
+   * 篩選面板預設向右展開，靠近視窗右緣的那幾個會超出去——露在外面的選項點不到。
+   * 這在寬螢幕就存在，只是篩選器排不到那麼右邊；窄螢幕讓它從偶發變成必然。
+   *
+   * 翻向左之前先還原，否則視窗變寬之後它會一直記得上次的方向。
+   */
+  for (const panelHost of document.querySelectorAll('.multi')) {
+    panelHost.addEventListener('toggle', () => {
+      if (!panelHost.open) return;
+      const panel = panelHost.querySelector('.multi__panel');
+      panel.classList.remove('multi__panel--flip');
+      const room = document.documentElement.clientWidth - 8;
+      if (panel.getBoundingClientRect().right > room) {
+        panel.classList.add('multi__panel--flip');
+      }
+    });
+  }
+
   for (const btn of document.querySelectorAll('[data-group]')) {
     btn.setAttribute('aria-pressed', String(btn.dataset.group === state.group));
+  }
+
+  for (const btn of document.querySelectorAll('[data-status]')) {
+    btn.setAttribute('aria-pressed', String(btn.dataset.status === state.status));
+  }
+
+  searchEl.value = state.search;
+
+  /**
+   * 分組列黏在表頭下緣，所以得知道表頭多高。表頭高度會隨斷點的 padding 變，
+   * 寫死就會在窄螢幕錯位——分組標題會蓋在它自己的第一列上（踩過）。
+   *
+   * 只觀察 thead 一個元素：工具列與篩選列的高度已經由 flex 版面吸收掉了。
+   */
+  const theadEl = document.querySelector('thead');
+
+  function syncTheadHeight() {
+    document.documentElement.style.setProperty(
+      '--thead-h',
+      `${theadEl.getBoundingClientRect().height}px`,
+    );
+  }
+
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(syncTheadHeight).observe(theadEl);
+  } else {
+    syncTheadHeight();
+    window.addEventListener('resize', syncTheadHeight);
   }
 
   render();

@@ -266,6 +266,8 @@ skill 選項：
 
     searchPlaceholder: '搜尋欄位 / response / 取值方式…',
     searchAria: '搜尋',
+    searchShortcut: '按 / 聚焦搜尋，Esc 清除',
+    warnUrlState: '網址中有無法辨識的篩選條件，已略過：',
     groupLabel: '分組',
     groupAria: '分組方式',
     groupBySection: '依區塊',
